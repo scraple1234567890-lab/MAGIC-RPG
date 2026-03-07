@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640" role="img" aria-label="Elroy portrait placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1a2433"/>
+      <stop offset="1" stop-color="#2a1f2f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="30%" cy="30%" r="70%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="18" y="18" width="604" height="604" rx="44" fill="url(#bg)"/>
+  <rect x="18" y="18" width="604" height="604" rx="44" fill="url(#glow)"/>
+  <rect x="18" y="18" width="604" height="604" rx="44" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="2"/>
+
+  <g opacity="0.22" filter="url(#soft)">
+    <path d="M110 170c70-60 170-80 250-50 55 20 100 60 150 80" fill="none" stroke="#d7d7ff" stroke-width="2"/>
+    <path d="M120 470c120 70 260 70 400-10" fill="none" stroke="#ffd7e6" stroke-width="2"/>
+    <path d="M180 220c0 120 90 210 210 210" fill="none" stroke="#d9ffef" stroke-width="2"/>
+  </g>
+
+  <g>
+    <text x="320" y="380" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="220" font-weight="800" fill="#ffffff" fill-opacity="0.92">E</text>
+    <text x="320" y="430" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="36" font-weight="600" fill="#ffffff" fill-opacity="0.55">ELROY</text>
+  </g>
+</svg>

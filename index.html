@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html data-theme="light" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="Tiny Turn RPG — a quick turn-based battle against a rival mage." name="description"/>
+<title>Tiny Turn RPG</title>
+<link href="./favicon.ico" rel="icon" sizes="any"/>
+<link href="./favicon.png" rel="icon" type="image/png"/>
+<link href="./styles.css?v=2026-02-16p" rel="stylesheet"/>
+</head>
+<body class="gamePage">
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="top"></div>
+<header class="header" role="banner">
+<nav aria-label="Primary" class="nav container">
+<a aria-label="Home" class="brand" href="./index.html#top">
+<span class="brandText">Tiny Turn RPG</span>
+</a>
+<button aria-controls="navLinks" aria-expanded="false" class="iconBtn navToggle" id="navToggle">
+<span class="srOnly">Open menu</span>
+<span aria-hidden="true" class="hamburger"></span>
+</button>
+<div class="navLinks" id="navLinks">
+  <a href="./index.html" aria-current="page">Game</a>
+  <div class="profileMenu" data-default-display="inline-flex" id="profileMenu" style="display: none">
+    <button aria-controls="profileMenuList" aria-expanded="false" aria-haspopup="menu" aria-label="Open account menu" class="btn ghost profileTrigger" id="profileMenuToggle" type="button">
+      <span class="srOnly">Profile</span>
+      <span class="profileAvatar profileAvatar--menu" id="profileAvatar">
+        <span aria-hidden="true" class="profileAvatarPlaceholder">
+          <svg focusable="false" role="presentation" viewBox="0 0 24 24">
+            <path d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5Zm0 2c-3.33 0-10 1.67-10 5v1h20v-1c0-3.33-6.67-5-10-5Z" fill="currentColor"></path>
+          </svg>
+        </span>
+        <img alt="" loading="lazy"/>
+      </span>
+      <span aria-hidden="true" class="profileCaret">▾</span>
+    </button>
+    <div aria-hidden="true" class="profileMenuList" id="profileMenuList" role="menu">
+      <a href="./login.html" role="menuitem">Local profile</a>
+      <button id="logoutBtn" role="menuitem" type="button">Log out</button>
+    </div>
+  </div>
+  <a class="btn primary magentaGlow" data-auth-target="login-cta" href="./login.html">Open the login portal</a>
+</div>
+</nav>
+</header>
+<main id="main">
+<section class="section">
+<div class="container">
+<div class="sectionHead">
+<h1 class="rpgTitle">Tiny Turn RPG</h1></div>
+<div class="rpgWrap" id="rpgRoot">
+    <!-- Utility controls (Restart from hero selection / Explain) -->
+  <div aria-label="Game controls" class="rpgTopControls" role="group">
+    <button class="btn heroCta rpgTopBtn" id="heroBtn" title="Restart and pick a hero" type="button"><span aria-hidden="true" class="rpgTopBtnIcon">↻</span>New battle</button>
+    <button class="btn ghost rpgTopBtn" id="spellPickBtn" type="button" hidden=""><span aria-hidden="true" class="rpgTopBtnIcon">📜</span>Choose spell</button>
+    <button class="btn ghost rpgTopBtn" id="perkBtn" type="button" title="Spend skill points to unlock perks"><span aria-hidden="true" class="rpgTopBtnIcon">✨</span>Perks</button>
+    <button class="btn ghost rpgTopBtn" id="codexBtn" type="button"><span aria-hidden="true" class="rpgTopBtnIcon">📚</span>Compendium</button>
+    <button class="btn ghost rpgTopBtn" id="musicBtn" type="button" title="Toggle background music"><span aria-hidden="true" class="rpgTopBtnIcon">🎵</span><span id="musicBtnLabel">Music</span></button>
+    <button class="btn ghost rpgTopBtn" id="explainBtn" type="button"><span aria-hidden="true" class="rpgTopBtnIcon">?</span>Explain</button>
+  </div>
+	<article aria-label="Battlefield" class="rpgBattlefield">
+	<div aria-label="Combatants" class="rpgGrid" role="group">
+<article aria-label="Player" class="post rpgCard" id="playerCard">
+<div class="rpgCardTop">
+<div class="rpgStatStack">
+<div class="rpgHeaderRow">
+<h2 class="rpgName rpgPlayerName" id="playerName">Player</h2></div>
+      <p class="muted small rpgTypeLine" id="playerTypeText">Type: Wind • Sight</p><div aria-label="Mana" class="rpgResourceRow">
+<p class="rpgHpText rpgHpText--inline rpgResourceText" id="playerFocusText">Mana: 2 / 6</p>
+<div aria-label="Mana meter" class="rpgMiniBar">
+<div class="rpgMiniBarFill" id="playerFocusFill"></div>
+</div>
+</div>
+<div aria-label="Level" class="rpgResourceRow">
+<p class="muted small rpgResourceText" id="playerLevelText">Lv 1 • XP 0 / 20</p>
+<div aria-label="Experience meter" class="rpgMiniBar rpgMiniBar--xp">
+<div class="rpgMiniBarFill rpgMiniBarFill--xp" id="playerXpFill"></div>
+</div>
+</div>
+<div class="rpgHpRow">
+<div aria-hidden="true" class="rpgHpTrack">
+<div class="rpgHpFill" id="playerHpFill" style="width: 100%"></div>
+</div>
+<p class="rpgHpText rpgHpText--inline" id="playerHpText">HP 20 / 20</p>
+</div></div>
+</div>
+
+</article>
+<article aria-label="Enemy" class="post rpgCard" id="enemyCard">
+<div class="rpgCardTop">
+<div class="rpgStatStack">
+<div class="rpgHeaderRow">
+<h2 class="rpgName rpgEnemyName" id="enemyName">Rival Mage</h2></div>
+<p class="muted small rpgTypeLine" id="enemyTypeText">Type: Fire • Sight</p>
+<div aria-label="Mana" class="rpgResourceRow">
+<p class="rpgHpText rpgHpText--inline rpgResourceText" id="enemyFocusText">Mana: 2 / 6</p>
+<div aria-label="Mana meter" class="rpgMiniBar">
+<div class="rpgMiniBarFill" id="enemyFocusFill"></div>
+</div>
+</div>
+<div class="rpgHpRow">
+<div aria-hidden="true" class="rpgHpTrack">
+<div class="rpgHpFill" id="enemyHpFill" style="width: 100%"></div>
+</div>
+<p class="rpgHpText rpgHpText--inline" id="enemyHpText">HP 18 / 18</p>
+</div></div>
+</div>
+	</article></div>
+
+	<div aria-label="Battle scene" class="rpgStage">
+	  <div aria-label="A tiny battle scene: the player faces a rival mage." class="rpgStageInner" role="img">
+<div aria-hidden="true" class="rpgFxLayer" id="fxLayer"></div>
+<div aria-hidden="true" class="rpgMoveBanner" data-type="Sight" id="moveBanner"><span class="rpgMoveBannerText" id="moveBannerText"></span></div>
+<div aria-hidden="true" class="rpgBossAppears" id="bossAppears" hidden><span class="rpgBossAppearsText">BOSS APPEARS</span></div>
+<div aria-hidden="true" class="rpgFoe rpgFoe--player" id="playerSprite">
+<img alt="" class="rpgSpriteImg" id="playerSpriteImg" loading="lazy" src="./assets/images/player-brown.png"/>
+<span aria-hidden="true" class="rpgShield" id="playerShield"></span>
+</div>
+<div aria-hidden="true" class="rpgFoe rpgFoe--enemy" id="enemySprite">
+<img alt="" class="rpgSpriteImg" id="enemySpriteImg" loading="lazy" src="./assets/images/enemy-blue.png"/>
+<span aria-hidden="true" class="rpgShield" id="enemyShield"></span>
+</div>
+	</div>
+	</div>
+	</article>
+
+	</div>
+<div aria-label="Actions" class="rpgActions">
+<div aria-live="polite" class="rpgEffectPreview isNeutral" id="effectPreview"></div>
+
+<button class="btn primary" id="attackBtn" type="button">Attack</button>
+
+<div class="rpgMagicWrap">
+  <button aria-controls="magicMenu" aria-expanded="false" aria-haspopup="true" class="btn ghost rpgMagicToggle" id="magicToggle" type="button">Magic</button>
+  <!-- Spell list is generated dynamically so new spells can unlock on level-up. -->
+  <div class="rpgMagicMenu" hidden="" id="magicMenu" role="menu"></div>
+</div>
+
+	<!-- Inventory: Gear first, with an Items button inside the opened menu -->
+	<div class="rpgMagicWrap rpgInventoryWrap">
+	  <button aria-controls="inventoryMenu" aria-expanded="false" aria-haspopup="true" class="btn ghost rpgMagicToggle" id="inventoryToggle" type="button">Inventory</button>
+	  <div class="rpgMagicMenu rpgInventoryMenu" hidden="" id="inventoryMenu" role="menu" data-inv-tab="gear">
+	    <div class="rpgInvTabs" role="tablist" aria-label="Inventory">
+	      <button class="btn ghost rpgInvTab isActive" type="button" role="tab" aria-selected="true" data-inv-tab="gear">Gear</button>
+	      <button class="btn ghost rpgInvTab" type="button" role="tab" aria-selected="false" data-inv-tab="items">Items</button>
+	    </div>
+	    <div class="rpgInvPane" id="inventoryGearPane" role="tabpanel" aria-label="Gear"></div>
+	    <div class="rpgInvPane" id="inventoryItemsPane" role="tabpanel" aria-label="Items" hidden></div>
+	  </div>
+	</div>
+
+<button class="btn secondary" id="healBtn" type="button">Heal</button>
+<button class="btn ghost" id="guardBtn" type="button">Guard</button>
+</div>
+<div aria-labelledby="explainTitle" aria-modal="true" class="rpgModal" hidden="" id="explainModal" role="dialog">
+<div class="post rpgModalInner" role="document">
+<div class="rpgModalHead">
+<h2 class="rpgLogTitle" id="explainTitle">How Mana and Types work</h2>
+<button aria-label="Close explanation" class="iconBtn" id="explainClose" type="button">✕</button>
+</div>
+<div class="rpgModalBody">
+<h3 class="rpgModalH">Mana</h3>
+<ul class="rpgModalList">
+<li><strong>Mana</strong> is your resource (0 to 6). You spend it on bigger actions.</li>
+<li><strong>Attack</strong> always gives <strong>+1 Mana</strong> and deals damage matching your hero’s <strong>primary type</strong>.</li>
+<li><strong>Guard</strong> gives <strong>+1 Mana</strong> and makes the next hit deal <strong>50% less</strong>.</li>
+<li><strong>Magic attacks</strong> cost <strong>2 Mana</strong>. <strong>Fire</strong> costs <strong>3 Mana</strong>.</li>
+<li><strong>Heal</strong> costs <strong>1 Mana</strong> (or <strong>2</strong> if you are <strong>Bound</strong>). It restores a chunk of HP and grants a small <strong>Barrier</strong> (next hit <strong>−30%</strong>). You have limited charges.</li>
+<li>If you are <strong>Bound</strong> (Touch effect), your <strong>magic costs +1 Mana</strong> until it wears off. Guard breaks Bind.</li>
+</ul>
+<h3 class="rpgModalH">Types</h3>
+<p class="muted">Damage is calculated like this:</p>
+<p class="rpgFormula"><strong>Damage</strong> = Base × <strong>STAB</strong> × <strong>Effectiveness</strong> (rounded)</p>
+<ul class="rpgModalList">
+<li><strong>Move type</strong>: each action is a type (Wind / Water / Sound / Smell/Taste / Fire / Sight / Earth / Touch).</li>
+<li><strong>Type-locked attacks</strong>: you can only use Attack + spells that match your hero’s types. (Attack always matches your primary type.) <span class="muted">Guard and Heal are universal.</span></li>
+<li><strong>STAB</strong> (Same Type Attack Bonus): if the move matches one of your types, it gets <strong>×1.2</strong>.</li>
+<li><strong>Effectiveness</strong>: some types hit harder or softer into other types.</li>
+<li><strong>Dual types</strong> multiply together (example: Wind vs Fire+Sight uses both matchups).</li>
+</ul>
+</div>
+<div class="rpgModalFoot">
+<button class="btn primary" id="explainOk" type="button">Got it</button>
+</div>
+</div>
+</div>
+
+<div aria-labelledby="codexTitle" aria-modal="true" class="rpgModal" hidden="" id="codexModal" role="dialog">
+  <div class="post rpgModalInner" role="document">
+    <div class="rpgModalHead">
+      <h2 class="rpgLogTitle" id="codexTitle">Compendium</h2>
+      <button aria-label="Close compendium" class="iconBtn" id="codexClose" type="button">✕</button>
+    </div>
+    <div class="rpgModalBody">
+      <p class="muted small" style="margin-top:0">A quick index of everything you can run into, pick up, or equip.</p>
+
+      <details class="rpgCodexDetails" open>
+        <summary><span>Enemies</span><span class="muted tiny" id="codexEnemiesCount"></span></summary>
+        <div class="rpgCodexList" id="codexEnemies"></div>
+      </details>
+
+      <details class="rpgCodexDetails">
+        <summary><span>Items</span><span class="muted tiny" id="codexItemsCount"></span></summary>
+        <div class="rpgCodexList" id="codexItems"></div>
+      </details>
+
+      <details class="rpgCodexDetails">
+        <summary><span>Gear</span><span class="muted tiny" id="codexGearCount"></span></summary>
+        <div class="rpgCodexList" id="codexGear"></div>
+      </details>
+    </div>
+    <div class="rpgModalFoot">
+      <button class="btn primary" id="codexOk" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Perks / Skill Points -->
+<div aria-labelledby="perkTitle" aria-modal="true" class="rpgModal" hidden="" id="perkModal" role="dialog">
+  <div class="post rpgModalInner rpgPerkInner" role="document">
+    <div class="rpgModalHead">
+      <h2 class="rpgLogTitle" id="perkTitle">Perks</h2>
+      <button aria-label="Close perks" class="iconBtn" id="perkClose" type="button">✕</button>
+    </div>
+    <div class="rpgModalBody">
+      <div class="rpgPerkMetaRow">
+        <div class="rpgPerkPoints" id="perkPoints">Skill Points: 0</div>
+        <div class="muted small" id="perkHeroLine">Unlock perks for your <strong>current hero</strong>. They persist between battles.</div>
+      </div>
+      <div id="perkDetails" class="rpgPerkDetails" hidden></div>
+      <div id="perkList"></div>
+      <p class="muted tiny" style="margin:0">Tip: you earn <strong>1 skill point</strong> each time this hero levels up.</p>
+    </div>
+    <div class="rpgModalFoot">
+      <button class="btn primary" id="perkOk" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Victory / Loot Screen (player continues manually) -->
+<div aria-hidden="false" aria-labelledby="lootTitle" aria-modal="true" class="rpgModal" hidden="" id="lootModal" role="dialog">
+  <div class="post rpgModalInner rpgLootInner" role="document" tabindex="-1">
+    <div class="rpgModalHead rpgLootHead">
+      <h2 class="rpgLogTitle" id="lootTitle">Victory</h2>
+    </div>
+    <div class="rpgModalBody rpgLootBody">
+      <p class="muted small" id="lootSubtitle" style="margin:0"></p>
+      <div class="rpgLootSummary" id="lootSummary" aria-label="Rewards summary"></div>
+      <div class="rpgLootLine" id="lootLine">No items.</div>
+    </div>
+    <div class="rpgModalFoot rpgLootFoot">
+      <button class="btn ghost" id="lootMapBtn" type="button">Back to map</button>
+      <button class="btn primary" id="lootContinueBtn" type="button">Continue</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Defeat Screen (shown when your hero falls) -->
+<div aria-hidden="false" aria-labelledby="defeatTitle" aria-modal="true" class="rpgModal" hidden="" id="defeatModal" role="dialog">
+  <div class="post rpgModalInner rpgDefeatInner" role="document" tabindex="-1">
+    <div class="rpgModalHead rpgDefeatHead">
+      <h2 class="rpgLogTitle" id="defeatTitle">Defeated</h2>
+    </div>
+    <div class="rpgModalBody rpgDefeatBody">
+      <p class="muted" id="defeatSubtitle" style="margin:0">Your hero falls. The world blurs at the edges.</p>
+    </div>
+    <div class="rpgModalFoot rpgDefeatFoot">
+      <button class="btn primary" id="defeatRestartBtn" type="button">Back to hero select</button>
+    </div>
+  </div>
+</div>
+
+<div class="rpgBottom">
+<article aria-label="Type chart" class="post rpgTypeCard">
+<div class="rpgTypeHead">
+<h2 class="rpgLogTitle">Full type chart</h2>
+</div>
+<div class="rpgTypeMatrixLegend">
+<span class="rpgTypeKey rpgTypeKey--super">Super effective</span>
+<span class="rpgTypeKey rpgTypeKey--effective">Effective</span>
+<span class="rpgTypeKey rpgTypeKey--neutral">Neutral</span>
+<span class="rpgTypeKey rpgTypeKey--not">Not effective</span>
+<span class="rpgTypeKey rpgTypeKey--extremeNot">Extremely not effective</span>
+<span class="muted tiny">Rows = attacker. Columns = defender.</span>
+</div>
+<div aria-label="Type chart scroll area" class="rpgTypeMatrixScroll" role="region">
+<table aria-label="Type effectiveness chart" class="rpgTypeMatrix" id="typeMatrix"></table>
+</div>
+</article>
+<!-- Character Picker Modal (pre-combat) -->
+<div aria-hidden="false" aria-labelledby="characterTitle" aria-modal="true" class="rpgModal" hidden="" id="characterModal" role="dialog">
+  <div class="post rpgModalInner" role="document">
+    <div class="rpgModalHead">
+      <h2 class="rpgLogTitle" id="characterTitle">Choose your hero</h2>
+      <button aria-label="Close hero picker" class="iconBtn" id="characterClose" type="button">✕</button>
+    </div>
+    <div class="rpgModalBody">
+      <p class="muted small" style="margin-top:0">Your hero changes your stats and type bonuses (STAB). You can change heroes anytime.</p>
+      <div aria-label="Character choices" class="rpgCharGrid" id="characterChoices"></div>
+    </div>
+    <div class="rpgModalFoot">
+      <button class="btn ghost" id="resetProgressBtn" type="button">Reset hero level</button>
+      <button class="btn primary" id="characterOk" type="button">Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- Spell Picker Modal (on level-up) -->
+<div aria-hidden="false" aria-labelledby="spellPickTitle" aria-modal="true" class="rpgModal" hidden="" id="spellPickModal" role="dialog">
+  <div class="post rpgModalInner" role="document">
+    <div class="rpgModalHead">
+      <h2 class="rpgLogTitle" id="spellPickTitle">Choose a spell to learn</h2>
+      <button aria-label="Close spell picker" class="iconBtn" id="spellPickClose" type="button">✕</button>
+    </div>
+    <div class="rpgModalBody">
+      <p class="muted small" style="margin-top:0">When you level up, you can bind one new spell. Your choice shapes your build.</p>
+      <div aria-label="Spell choices" class="rpgSpellGrid" id="spellPickChoices"></div>
+      <p class="muted tiny" id="spellPickHint" style="margin:0">Tip: You can always open this later via <strong>Choose spell</strong> at the top.</p>
+    </div>
+    <div class="rpgModalFoot">
+      <button class="btn ghost" id="spellPickLater" type="button">Not now</button>
+    </div>
+  </div>
+</div>
+
+<div aria-hidden="false" aria-labelledby="locationTitle" aria-modal="true" class="rpgModal" hidden="" id="locationModal" role="dialog">
+<div class="post rpgModalInner" role="document">
+<div class="rpgModalHead">
+<h2 class="rpgLogTitle srOnly" id="locationTitle">Overworld</h2>
+</div>
+<div class="rpgModalBody">
+<div class="rpgOverworldMapStage" id="locationChoices" role="group" aria-label="Overworld map"></div>
+
+<div class="rpgOverworldActionRow" aria-label="Overworld actions">
+  <button class="btn primary" id="overworldBattleBtn" type="button" disabled>Battle here</button>
+  <button class="btn" id="overworldShopBtn" type="button" hidden>Open shop</button>
+</div>
+
+
+</div>
+</div>
+</div>
+</div>
+</div>
+
+</section>
+</main>
+<footer class="footer" role="contentinfo">
+<div class="container footerInner">
+<a aria-label="Tiny Turn RPG home" class="footerMark" href="./index.html#top">
+<span class="footerMarkText">Tiny Turn RPG</span>
+</a>
+<nav aria-label="Footer" class="footerNav">
+<a href="#top">Back to top</a>
+<a href="./login.html">Local profile</a>
+</nav>
+</div>
+<div class="container footerBottom">
+<p class="muted small">© <span id="year"></span> Tiny Turn RPG.</p>
+<div class="footerBottomLinks">
+<a class="muted small" href="#top">Back to top ↑</a>
+<a class="muted small" href="./login.html">Local profile</a>
+</div>
+</div>
+</footer>
+
+<div aria-labelledby="shopTitle" aria-modal="true" class="rpgModal" hidden="" id="shopModal" role="dialog">
+  <div class="post rpgModalInner rpgShopInner" role="document" tabindex="-1">
+    <div class="rpgModalHead rpgShopHead">
+      <h2 class="rpgLogTitle" id="shopTitle">Shop</h2>
+      <button aria-label="Close shop" class="iconBtn" id="shopXBtn" type="button">✕</button>
+    </div>
+
+    <div class="rpgModalBody rpgShopBody">
+      <div class="rpgShopHeader">
+        <p class="muted small rpgShopNote" style="margin:0">Spend your Coins on supplies. Inventory updates instantly.</p>
+        <div class="rpgShopBalance" aria-label="Coin balance">
+          <span class="muted tiny rpgShopBalanceLabel">Balance</span>
+          <span class="rpgLootChip rpgLootChip--coin" id="shopCoins">🪙 0 Coins</span>
+        </div>
+      </div>
+
+      <div class="rpgShopList" id="shopList" role="list"></div>
+    </div>
+
+    <div class="rpgModalFoot rpgShopFoot">
+      <button class="btn primary" id="shopCloseBtn" type="button">Back to map</button>
+    </div>
+  </div>
+</div>
+
+
+<script defer="" src="./script.js"></script>
+<script defer="" src="./js/localAuth.js"></script><script src="./data/characters-data.js?v=2026-02-16"></script>
+<script src="./data/map-locations.js?v=2026-02-16"></script>
+<script defer="" src="./js/game.js?v=2026-02-16n"></script>
+</body>
+</html>
