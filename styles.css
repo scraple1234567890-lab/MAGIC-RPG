@@ -1,6 +1,6 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&family=Cinzel:wght@500;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400;1,600&display=swap");
-
 :root {
+  --bg-hero: url("./assets/images/hero-approach.jpg");
+  --bg-battle: url("./assets/images/magic-battle-bg.jpg");
   --bg: #0a0616;
   --panel: #100a20;
   --panel2: #1a1030;
@@ -150,7 +150,7 @@ body {
   background-color: var(--bg);
   background-image:
     linear-gradient(125deg, rgba(17, 8, 38, 0.72), rgba(6, 6, 14, 0.64)),
-    url("./assets/images/hero-approach.png");
+    var(--bg-hero);
   background-repeat: no-repeat;
   background-size: cover, cover;
   background-position: center top, 50% 8%;
@@ -846,7 +846,7 @@ h1 {
   --border: #3a2b5d;
   background-image:
     linear-gradient(125deg, rgba(17, 8, 38, 0.72), rgba(6, 6, 14, 0.64)),
-    url("./assets/images/hero-approach.png");
+    var(--bg-hero);
   background-repeat: no-repeat;
   background-size: cover, cover;
   background-position: center top, 50% 8%;
@@ -4147,7 +4147,7 @@ html[data-theme="light"] .rpgTileAvatar{
     /* Soft dark veil for readability */
     linear-gradient(180deg, rgba(10, 6, 22, 0.28), rgba(10, 6, 22, 0.72)),
     /* Magical scene backdrop */
-    url("./assets/images/magic-battle-bg.png") center / cover no-repeat,
+    var(--bg-battle) center / cover no-repeat,
     /* Subtle arcane glows */
     radial-gradient(120px 80px at 22% 35%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%),
     radial-gradient(150px 100px at 78% 35%, color-mix(in srgb, var(--accent2) 18%, transparent), transparent 70%);
@@ -4179,7 +4179,7 @@ html[data-theme="light"] .rpgTileAvatar{
     /* Soft dark veil for readability */
     linear-gradient(180deg, rgba(10, 6, 22, 0.28), rgba(10, 6, 22, 0.78)),
     /* Magical scene backdrop */
-    url("./assets/images/magic-battle-bg.png") center / cover no-repeat,
+    var(--bg-battle) center / cover no-repeat,
     /* Subtle arcane glows */
     radial-gradient(120px 80px at 22% 24%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%),
     radial-gradient(150px 100px at 78% 24%, color-mix(in srgb, var(--accent2) 18%, transparent), transparent 70%);
@@ -10461,5 +10461,18 @@ body.crownQuillPage {
     line-height: 0.92;
     padding: 0.04em 0.10em 0 0;
     color: rgba(36,22,15,0.92);
+  }
+}
+
+@supports (background-image: image-set(url("x") type("image/webp"))) {
+  :root {
+    --bg-hero: image-set(
+      url("./assets/images/hero-approach.webp") type("image/webp"),
+      url("./assets/images/hero-approach.jpg") type("image/jpeg")
+    );
+    --bg-battle: image-set(
+      url("./assets/images/magic-battle-bg.webp") type("image/webp"),
+      url("./assets/images/magic-battle-bg.jpg") type("image/jpeg")
+    );
   }
 }

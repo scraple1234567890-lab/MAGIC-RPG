@@ -1,6 +1,6 @@
 window.MAP_LOCATIONS_DATA = {
   "image": {
-    "url": "assets/images/city-map.png",
+    "url": "assets/images/city-map.webp",
     "width": 2048,
     "height": 1432,
     "credit": "Map art: yours \u2728"

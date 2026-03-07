@@ -36,7 +36,7 @@ window.CHARACTERS_DATA = {
       "aliases": [
         "Alethea (main character)"
       ],
-      "image": "./assets/images/characters/alethea.png",
+      "image": "./assets/images/characters/alethea.webp",
       "href": "./characters/alethea.html",
       "related_events": [
         {
@@ -132,7 +132,7 @@ window.CHARACTERS_DATA = {
         "The Runner",
         "Belle “Stillpoint”"
       ],
-      "image": "./assets/images/characters/axel.png",
+      "image": "./assets/images/characters/axel.webp",
       "href": "./characters/axel.html",
       "related_events": [
         {
@@ -187,7 +187,7 @@ window.CHARACTERS_DATA = {
         "Dev",
         "The Tuning Fork"
       ],
-      "image": "./assets/images/characters/devante.png",
+      "image": "./assets/images/characters/devante.webp",
       "href": "./characters/devante.html",
       "related_events": [
         {
@@ -247,7 +247,7 @@ window.CHARACTERS_DATA = {
         "Headmaster Relen",
         "The Chainwright"
       ],
-      "image": "./assets/images/characters/relen.png",
+      "image": "./assets/images/characters/relen.webp",
       "href": "./characters/relen.html",
       "related_events": [
         {
@@ -293,7 +293,7 @@ window.CHARACTERS_DATA = {
       "aliases": [
         "Mira (expelled student)"
       ],
-      "image": "./assets/images/characters/mira.png",
+      "image": "./assets/images/characters/mira.webp",
       "href": "./characters/mira.html",
       "related_events": [],
       "related_locations": [],

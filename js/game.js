@@ -930,7 +930,7 @@ function __getWaveClearAudio() {
   if (__waveClearAudio) return __waveClearAudio;
   try {
     const a = new Audio(WAVE_CLEAR_SFX_SRC);
-    a.preload = "auto";
+    a.preload = "none";
     a.volume = 0.75;
     __waveClearAudio = a;
     return a;
@@ -949,7 +949,7 @@ function __getBossAppearsAudio() {
   if (__bossAppearsAudio) return __bossAppearsAudio;
   try {
     const a = new Audio(BOSS_APPEARS_SFX_SRC);
-    a.preload = "auto";
+    a.preload = "none";
     a.volume = 0.9;
     __bossAppearsAudio = a;
     return a;
@@ -1041,7 +1041,7 @@ function playBossAppearsSfx() {
 
   let __musicAudio = null;
   let __musicIndex = 0;
-  let __musicEnabled = true;
+  let __musicEnabled = false;
   let __musicNeedGesture = false;
   let __musicWasPlayingBeforeHide = false;
 
@@ -1057,7 +1057,7 @@ function playBossAppearsSfx() {
     if (__bossAudio) return __bossAudio;
     try {
       const a = new Audio();
-      a.preload = "auto";
+      a.preload = "none";
       a.loop = true;
       a.volume = 0.35;
       __bossAudio = a;
@@ -1148,7 +1148,7 @@ function playBossAppearsSfx() {
     if (__musicAudio) return __musicAudio;
     try {
       const a = new Audio();
-      a.preload = "auto";
+      a.preload = "none";
       a.loop = false;
       a.volume = 0.35;
 
@@ -1254,11 +1254,11 @@ function playBossAppearsSfx() {
   // Init music on the game page only
   (function __initMusic() {
     __loadMusicPrefs();
-    __setMusicTrack(0);
     __updateMusicBtn();
 
-    // Attempt autoplay (will be blocked on some browsers until the first gesture)
-    __tryStartMusic();
+    // Don't preload/download music on page load.
+    // If music is enabled, wait for the first user gesture to start it.
+    if (__musicEnabled) __musicNeedGesture = true;
 
     // Gesture unlock (needed in many browsers)
     ["pointerdown", "keydown", "touchstart"].forEach((evt) => {
@@ -3074,11 +3074,11 @@ function renderLocationChoices() {
   })();
 
   const hero = getActiveHero();
-  const heroSpriteRaw = (hero && typeof hero.sprite === "string" && hero.sprite.trim()) ? hero.sprite.trim() : "./assets/images/characters/axel.png";
+  const heroSpriteRaw = (hero && typeof hero.sprite === "string" && hero.sprite.trim()) ? hero.sprite.trim() : "./assets/images/characters/axel.webp";
   const heroSprite = (heroSpriteRaw.startsWith(".") || heroSpriteRaw.startsWith("/")) ? heroSpriteRaw : `./${heroSpriteRaw}`;
 
   const data = window.MAP_LOCATIONS_DATA;
-  const mapUrlRaw = (data && data.image && typeof data.image.url === "string") ? data.image.url : "assets/images/city-map.png";
+  const mapUrlRaw = (data && data.image && typeof data.image.url === "string") ? data.image.url : "assets/images/city-map.webp";
   const mapUrl = (mapUrlRaw.startsWith(".") || mapUrlRaw.startsWith("/")) ? mapUrlRaw : `./${mapUrlRaw}`;
 
   const pinIds = [...OVERWORLD_BATTLE_IDS, ...OVERWORLD_SHOP_IDS];
@@ -5258,8 +5258,8 @@ function heroFromCharacterData(c) {
   }[cid] || { maxHp: 20, focusStart: 2 };
 
   // Game-page-only sprite override(s)
-  let sprite = String(c?.image || "./assets/images/characters/relen.png");
-  if (cid === "relen") sprite = "./assets/images/characters/relen-game.png";
+  let sprite = String(c?.image || "./assets/images/characters/relen.webp");
+  if (cid === "relen") sprite = "./assets/images/characters/relen-game.webp";
 
   return {
     id: String(c?.id || "hero"),
@@ -5303,7 +5303,7 @@ const PLAYABLE_HEROES = buildPlayableHeroes() || [
     healCharges: 3,
     focusMax: 6,
     focusStart: 2,
-    sprite: "./assets/images/characters/relen-game.png",
+    sprite: "./assets/images/characters/relen-game.webp",
     blurb: "Wind + Sight. A young prodigy with light-built precision.",
   },
   {
@@ -5314,7 +5314,7 @@ const PLAYABLE_HEROES = buildPlayableHeroes() || [
     healCharges: 3,
     focusMax: 6,
     focusStart: 2,
-    sprite: "./assets/images/characters/axel.png",
+    sprite: "./assets/images/characters/axel.webp",
     blurb: "Sound + Fire. Resonant pulse with matchbright snap.",
   },
   {
@@ -5325,7 +5325,7 @@ const PLAYABLE_HEROES = buildPlayableHeroes() || [
     healCharges: 3,
     focusMax: 6,
     focusStart: 2,
-    sprite: "./assets/images/characters/mira.png",
+    sprite: "./assets/images/characters/mira.webp",
     blurb: "Smell/Taste + Fire. Sealed record, sharp scent, hotter sparks.",
   },
   {
@@ -5336,7 +5336,7 @@ const PLAYABLE_HEROES = buildPlayableHeroes() || [
     healCharges: 3,
     focusMax: 6,
     focusStart: 2,
-    sprite: "./assets/images/characters/devante.png",
+    sprite: "./assets/images/characters/devante.webp",
     blurb: "Water + Sound. Calm resonance with a tide-tuned pulse.",
   },
 ];
@@ -5389,7 +5389,7 @@ const ENEMIES = [
     maxHp: 22,
     healCharges: 2,
     profile: "fireSight",
-    sprite: "./assets/images/enemy-blue.png",
+    sprite: "./assets/images/enemy-blue.webp",
   },
   {
     name: "Stonebound Seer",
@@ -5397,7 +5397,7 @@ const ENEMIES = [
     maxHp: 28,
     healCharges: 2,
     profile: "earthTouch",
-    sprite: "./assets/images/enemy-blonde.png",
+    sprite: "./assets/images/enemy-blonde.webp",
   },
   {
     name: "Inkward Scribe",
@@ -5405,7 +5405,7 @@ const ENEMIES = [
     maxHp: 25,
     healCharges: 1,
     profile: "soundTouch",
-    sprite: "./assets/images/enemy-scribe.png",
+    sprite: "./assets/images/enemy-scribe.webp",
   },
   {
     name: "Tidehand Alchemist",
@@ -5413,7 +5413,7 @@ const ENEMIES = [
     maxHp: 27,
     healCharges: 1,
     profile: "waterTouch",
-    sprite: "./assets/images/enemy-tidehand.png",
+    sprite: "./assets/images/enemy-tidehand.webp",
     spriteIsPixel: false,
   },
 
@@ -5423,7 +5423,7 @@ const ENEMIES = [
     maxHp: 31,
     healCharges: 1,
     profile: "soundFire",
-    sprite: "./assets/images/enemy-chorusflame.png",
+    sprite: "./assets/images/enemy-chorusflame.webp",
     spriteIsPixel: false,
   },
 
@@ -5433,7 +5433,7 @@ const ENEMIES = [
     maxHp: 26,
     healCharges: 1,
     profile: "windSight",
-    sprite: "./assets/images/enemy-ravenwind.png",
+    sprite: "./assets/images/enemy-ravenwind.webp",
     spriteIsPixel: false,
   },
 
@@ -5443,7 +5443,7 @@ const ENEMIES = [
     maxHp: 28,
     healCharges: 1,
     profile: "smellEarth",
-    sprite: "./assets/images/enemy-verdant-mender.png",
+    sprite: "./assets/images/enemy-verdant-mender.webp",
     spriteIsPixel: false,
   },
 
@@ -5455,7 +5455,7 @@ const ENEMIES = [
     focusMax: 7,
     focusStart: 3,
     profile: "bossEclipse",
-    sprite: "./assets/images/enemy-candle-queen.png",
+    sprite: "./assets/images/enemy-candle-queen.webp",
   },
 ];
 
