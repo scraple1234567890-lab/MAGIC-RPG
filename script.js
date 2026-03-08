@@ -2,15 +2,10 @@
   const root = document.documentElement;
   const navToggle = document.getElementById("navToggle");
   const navLinks = document.getElementById("navLinks");
-  const profileMenu = document.getElementById("profileMenu");
-  const profileToggle = document.getElementById("profileMenuToggle");
-  const profileMenuList = document.getElementById("profileMenuList");
-  const loginButtons = Array.from(document.querySelectorAll('[data-auth-target="login-cta"]'));
   const loreFeeds = Array.from(document.querySelectorAll("[data-lore-feed]"));
   const loreComposerForm = document.getElementById("loreComposerForm");
   const loreComposerStatus = document.getElementById("loreComposerStatus");
   const LOCAL_LORE_KEY = "userLorePosts";
-  const LOGIN_STATE_KEY = "auth:isLoggedIn";
   const DATA_POSTS_URL = "./data/posts.json";
   const header = document.querySelector(".header");
 
@@ -72,9 +67,6 @@
   navToggle?.addEventListener("click", () => {
     const open = !navLinks.classList.contains("open");
     setNavOpen(open);
-    if (!open) {
-      closeProfileMenu();
-    }
   });
 
   // Close menu after clicking a link (mobile)
@@ -89,7 +81,6 @@ navLinks?.addEventListener("click", (e) => {
 
   const closeNow = () => {
     setNavOpen(false);
-    closeProfileMenu();
   };
 
   if (actionEl.tagName === "A") {
@@ -105,76 +96,8 @@ navLinks?.addEventListener("click", (e) => {
   closeNow();
 });
 
-  function setProfileMenuOpen(open) {
-    if (!(profileMenu instanceof HTMLElement)) return;
-    profileMenu.classList.toggle("open", open);
-    if (profileToggle) {
-      profileToggle.setAttribute("aria-expanded", String(open));
-    }
-    if (profileMenuList) {
-      profileMenuList.setAttribute("aria-hidden", String(!open));
-    }
-  }
-
-  function closeProfileMenu() {
-    setProfileMenuOpen(false);
-  }
-
-  profileToggle?.addEventListener("click", () => {
-    const isOpen = profileMenu?.classList.contains("open");
-    setProfileMenuOpen(!isOpen);
-  });
-
-  profileMenuList?.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    if (target.tagName === "A" || target.tagName === "BUTTON") {
-      closeProfileMenu();
-    }
-  });
-
-  document.addEventListener("click", (event) => {
-    if (!profileMenu?.classList.contains("open")) return;
-    if (!(event.target instanceof Node)) return;
-    if (profileMenu.contains(event.target)) return;
-    closeProfileMenu();
-  });
-
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      closeProfileMenu();
-    }
-  });
-
-  // Close menu on Escape
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") setNavOpen(false);
-  });
-
   function pickRandom(list) {
     return list[Math.floor(Math.random() * list.length)];
-  }
-
-  function toggleLoginButtons(show) {
-    loginButtons.forEach((button) => {
-      if (!(button instanceof HTMLElement)) return;
-      if (!button.dataset.defaultDisplay) {
-        button.dataset.defaultDisplay = button.style.display || "";
-      }
-      button.style.display = show ? button.dataset.defaultDisplay : "none";
-    });
-  }
-
-  function toggleProfileMenuVisibility(show) {
-    if (!(profileMenu instanceof HTMLElement)) return;
-    if (!profileMenu.dataset.defaultDisplay) {
-      profileMenu.dataset.defaultDisplay =
-        profileMenu.style.display && profileMenu.style.display !== "none" ? profileMenu.style.display : "inline-flex";
-    }
-    profileMenu.style.display = show ? profileMenu.dataset.defaultDisplay : "none";
-    if (!show) {
-      closeProfileMenu();
-    }
   }
 
   // Hide header while scrolling down
@@ -199,24 +122,6 @@ navLinks?.addEventListener("click", (e) => {
 
     window.addEventListener("scroll", updateHeaderVisibility, { passive: true });
   }
-
-  function syncLoginButtonsFromStorage() {
-    let isLoggedIn = false;
-    try {
-      isLoggedIn = localStorage.getItem(LOGIN_STATE_KEY) === "true";
-    } catch (err) {
-      console.warn("Unable to read auth state from storage", err);
-    }
-    toggleLoginButtons(!isLoggedIn);
-    toggleProfileMenuVisibility(isLoggedIn);
-  }
-
-  syncLoginButtonsFromStorage();
-  window.addEventListener("storage", (event) => {
-    if (event.key === LOGIN_STATE_KEY) {
-      syncLoginButtonsFromStorage();
-    }
-  });
 
   function createVisitLorePost() {
     const createdAt = new Date();
