@@ -7295,7 +7295,7 @@ function maybeTriggerApproachEncounterTile() {
   if (!tile || isApproachEncounterTileSpent(tile.id)) return false;
   if (!APPROACH.encounterTileStates || typeof APPROACH.encounterTileStates !== 'object') APPROACH.encounterTileStates = Object.create(null);
   APPROACH.encounterTileStates[tile.id] = { spent: true, triggered: false };
-  if (Math.random() <= clamp(toSafeNum(tile.chance, APPROACH_SKIRMISH_CHANCE), 0.05, 1)) {
+  if (Math.random() <= clamp(toSafeNum(tile.chance, APPROACH_SKIRMISH_DEFAULT_CHANCE), 0.05, 1)) {
     APPROACH.encounterTileStates[tile.id].triggered = true;
     APPROACH.statusMessage = `${tile.label || 'A skirmish switch'} flares and pulls a foe into the path!`;
     startApproachSkirmishEncounter(tile);
@@ -8957,7 +8957,7 @@ function persistPlayerProgress() {
         els.enemySpriteImg.setAttribute("src", state.enemy.sprite);
       }
       // Normalize visual size across different sprite padding.
-      autoScaleSprite(els.enemySpriteImg, { target: 0.93, max: 2.85, fillH: 0.86 });
+      autoScaleSprite(els.enemySpriteImg, { target: 0.82, min: 0.88, max: 1.6, fillH: 0.68 });
       // Pixel-art enemies stay crisp, but allow portrait-style enemy art too.
       const enemyIsPortrait = state.enemy.spriteIsPixel === false;
       els.enemySpriteImg.classList.toggle("isPixel", !enemyIsPortrait);
@@ -8970,7 +8970,7 @@ function persistPlayerProgress() {
       }
 
       // Normalize visual size across different sprite padding.
-      autoScaleSprite(els.playerSpriteImg, { target: 0.93, max: 2.85, fillH: 0.86 });
+      autoScaleSprite(els.playerSpriteImg, { target: 0.82, min: 0.88, max: 1.6, fillH: 0.68 });
 
       // Use crisp pixel rendering for pixel sprites, but keep portraits smooth.
       const isPortrait = String(state.player.sprite).includes("/assets/images/characters/") ||

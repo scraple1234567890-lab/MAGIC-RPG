@@ -4782,9 +4782,9 @@ html[data-theme="light"] .rpgTileAvatar{
 
 .rpgFoe {
   position: absolute;
-  bottom: 18px;
-  width: 220px;
-  height: 260px;
+  bottom: 14px;
+  width: 180px;
+  height: 220px;
   display: grid;
   place-items: center;
   --foeGlow: rgba(0,0,0,0);
@@ -4977,6 +4977,8 @@ html[data-theme="light"] .rpgTileAvatar{
 .rpgSpriteImg {
   width: 100%;
   height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
   object-position: center bottom;
   image-rendering: auto;
@@ -6677,8 +6679,10 @@ body.gamePage .rpgStageInner{
   height: 300px;
 }
 body.gamePage .rpgFoe{
-  /* Lift sprites up a touch (less empty space above their heads) */
-  bottom: 28px;
+  width: 170px;
+  height: 210px;
+  /* Lift sprites up a touch without letting them swallow the stage */
+  bottom: 18px;
 }
 body.gamePage .rpgActions{
   padding: 10px;
