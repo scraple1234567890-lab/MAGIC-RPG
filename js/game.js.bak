@@ -82,29 +82,11 @@ if (root) {
     rafId: 0,
     lastTs: 0,
     keys: Object.create(null),
-    preferredDir: null,
     nearGate: false,
-    nearInteractableId: null,
-    nearPuzzleNodeId: null,
-    nearEncounterTileId: null,
-    interactedIds: Object.create(null),
-    bonuses: [],
-    puzzleStates: Object.create(null),
-    encounterTiles: [],
-    encounterTileStates: Object.create(null),
-    statusMessage: '',
-    puzzle: {
-      active: false,
-      interactableId: null,
-      prompt: '',
-      hint: '',
-      sequence: [],
-      entered: [],
-      message: '',
-    },
+    nearInteractable: false,
+    interacted: false,
+    bonus: null,
   };
-
-  const APPROACH_SKIRMISH_DEFAULT_CHANCE = 0.16;
 
   // Battle locations used by the RPG.
   const BASE_OVERWORLD_BATTLE_IDS = ["arena", "market-central", "fey-forest", "gutterglass"];
@@ -3152,11 +3134,6 @@ function resolveLootDismissal(lr) {
 
   // Final wave: return to the character menu after rewards.
   if (lr.isFinal) {
-    if (state.battleMode === 'approach-skirmish') {
-      const snap = state.returnToApproach ? JSON.parse(JSON.stringify(state.returnToApproach)) : null;
-      reopenApproachFromSnapshot(snap, 'The skirmish sigil burns out after a brief clash.');
-      return;
-    }
     // Boss fight is over; return to normal background music.
     __exitBossMusic();
     const district = CAMPAIGN_DISTRICT_BY_ID[state.locationId || ''];
@@ -3792,9 +3769,9 @@ function startBattleWithLocation(locId) {
     return;
   }
 
-  const pendingApproachBonuses = (APPROACH.active && APPROACH.locationId === loc.id && Array.isArray(APPROACH.bonuses) && APPROACH.bonuses.length)
-    ? APPROACH.bonuses.map((bonus) => cloneApproachBonus(bonus)).filter(Boolean)
-    : [];
+  const pendingApproachBonus = (APPROACH.active && APPROACH.locationId === loc.id && APPROACH.bonus)
+    ? cloneApproachBonus(APPROACH.bonus)
+    : null;
 
   closeMagicMenu();
   closeInventoryMenu();
@@ -3812,7 +3789,7 @@ function startBattleWithLocation(locId) {
   const encounterSet = buildEncounterSetForLocation(loc);
   activeEnemySet = encounterSet;
   state = makeInitialState(encounterSet, loc.id);
-  pendingApproachBonuses.forEach((bonus) => applyApproachBonusToBattle(bonus, loc));
+  if (pendingApproachBonus) applyApproachBonusToBattle(pendingApproachBonus, loc);
   syncKnownSpells(false);
   state.enemy.intent = computeEnemyIntent();
   renderIntent(state.enemy.intent);
@@ -6149,452 +6126,187 @@ function setActiveLocation(id) {
 const LOCATION_APPROACH_SCENES = {
   "arena": {
     theme: "arena",
-    blurb: "Cross the open practice yard, dip into side lanes, and raid the prep alcoves before you hit the arena gate.",
+    blurb: "Cross the warm-up grounds, thread the armory lanes, and push through the coliseum service gate.",
     tileSize: 72,
-    skirmishField: { col: 11, row: 1, cols: 4, rows: 6, chance: 0.16, label: "Practice Switches" },
     layout: [
-      "#####################",
-      "#..c......#.........#",
-      "#.S...#...#.........#",
-      "#.....#.J.#.........#",
-      "#..a..#...#.........#",
-      "#.....#.......####..#",
-      "#.....#.......#..#..#",
-      "#.............#..#..#",
-      "#..###....#.....I#..#",
-      "#.........#...#..#..#",
-      "#...K.....#...#..#..#",
-      "#.......b.#...####..#",
-      "#.........#.......G.#",
-      "#..............d....#",
-      "#####################",
+      "####################",
+      "#S....#....#.......#",
+      "#.###.#.##.#.#####.#",
+      "#...#.#.##.#...#...#",
+      "###.#.#....###.#.###",
+      "#...#.#.##.....#...#",
+      "#.###.#.######.###.#",
+      "#.#...#..I...#...#.#",
+      "#.#.######.#.###.#.#",
+      "#...#......#...#...#",
+      "#.###.########.###.#",
+      "#...............G..#",
+      "####################",
     ],
-    interactables: [
-      {
-        marker: "I", cls: "dummy", label: "Training Dummy", actionLabel: "Practice", radiusPct: 8,
-        effect: { damageBoost: 1.22 },
-        mazePuzzle: {
-          hint: 'Find the two sparring sigils to lift the dummy-room seal. You can activate them in either order.',
-          solvedText: 'The dummy alcove rumbles open.',
-          lockedText: 'A sealed training wall blocks the dummy alcove. Find the sparring sigils.',
-          steps: [
-            { marker: 'a', label: 'West Sparring Sigil' },
-            { marker: 'b', label: 'East Sparring Sigil' },
-          ],
-          wallTiles: [{ col: 14, row: 8 }],
-        },
-        foundText: "You run a fast form drill. Your next big hit is tighter and meaner.",
-      },
-      {
-        marker: "J", cls: "rack", label: "Weapon Rack", actionLabel: "Sharpen", radiusPct: 8,
-        effect: { focus: 1 },
-        mazePuzzle: {
-          hint: 'Trace the rack sigil to unbar the weapon lane.',
-          solvedText: 'The rack lane unbars with a metallic snap.',
-          lockedText: 'A training latch bars the weapon rack lane. Find the rack sigil.',
-          steps: [
-            { marker: 'c', label: 'Rack Sigil' },
-          ],
-          wallTiles: [{ col: 7, row: 3 }],
-        },
-        foundText: "A balanced edge settles your stance. Start battle with +1 mana.",
-      },
-      {
-        marker: "K", cls: "medkit", label: "Field Kit", actionLabel: "Patch Up", radiusPct: 8,
-        effect: { heal: 8 },
-        mazePuzzle: {
-          hint: 'Light the medic sigil to swing open the field-kit barrier.',
-          solvedText: 'The field-kit barrier folds aside.',
-          lockedText: 'A folding barrier keeps the field kit shut away. Find the medic sigil.',
-          steps: [
-            { marker: 'd', label: 'Medic Sigil' },
-          ],
-          wallTiles: [{ col: 4, row: 11 }],
-        },
-        foundText: "A fast wrap and tonic take the sting off. Start battle with extra health.",
-      },
-    ],
+    interactable: {
+      cls: "dummy", label: "Training Dummy", actionLabel: "Practice", radiusPct: 8,
+      effect: { damageBoost: 1.3 },
+      foundText: "You run a quick form drill. Your first strike in battle will hit harder.",
+    },
     props: [
-      { col: 6, row: 1, colSpan: 1, rowSpan: 12, cls: "pillar", solid: false },
-      { col: 13, row: 1, colSpan: 1, rowSpan: 12, cls: "pillar", solid: false },
-      { col: 3, row: 5, colSpan: 2, rowSpan: 1, cls: "crate", solid: false },
-      { col: 9, row: 7, colSpan: 3, rowSpan: 1, cls: "barricade", solid: false },
-      { col: 16, row: 3, colSpan: 2, rowSpan: 1, cls: "rack", solid: false },
-      { col: 18, row: 11, colSpan: 1, rowSpan: 2, cls: "banner", solid: false },
-      { col: 10, row: 13, colSpan: 1, rowSpan: 1, cls: "medkit", solid: false },
+      { col: 5, row: 1, colSpan: 1, rowSpan: 10, cls: "pillar", solid: false },
+      { col: 10, row: 1, colSpan: 1, rowSpan: 6, cls: "pillar", solid: false },
+      { col: 14, row: 2, colSpan: 3, rowSpan: 1, cls: "rack", solid: false },
+      { col: 7, row: 8, colSpan: 5, rowSpan: 1, cls: "barricade", solid: false },
+      { col: 17, row: 10, colSpan: 1, rowSpan: 2, cls: "banner", solid: false },
+      { col: 2, row: 10, colSpan: 2, rowSpan: 1, cls: "crate", solid: false },
     ],
   },
   "market-central": {
     theme: "market",
-    blurb: "Wander the broad bazaar floor, slip into side alleys, and cut through a few stall branches before the market gate.",
+    blurb: "Slip through the lantern alleys, sidestep shuttered stalls, and cut across the market maze before the crowd collapses in.",
     tileSize: 70,
-    skirmishField: { col: 5, row: 8, cols: 4, rows: 6, chance: 0.16, label: "Bazaar Switches" },
     layout: [
-      "#####################",
-      "#....#....c.........#",
-      "#.S..#.a.....#......#",
-      "#..J.#.....K.#......#",
-      "#....#...#...#.####.#",
-      "#....#...#...#.#..#.#",
-      "#........#...#..I.#.#",
-      "#........#...#.#..#.#",
-      "#..####..#.....####.#",
-      "#........#.....#....#",
-      "#........#.b...#....#",
-      "#.d......#.....#....#",
-      "#..............#..G.#",
-      "#...................#",
-      "#####################",
+      "####################",
+      "#S....#......#.....#",
+      "#.###.#.####.#.###.#",
+      "#...#.#....#.#.#...#",
+      "###.#.####.#.#.#.###",
+      "#...#....#.#...#...#",
+      "#.#####.#.#.#####.#.#",
+      "#.#..I..#.#.....#.#.#",
+      "#.#.#####.#####.#.#.#",
+      "#...#.....#...#...#.#",
+      "###.#.#####.#.#####.#",
+      "#.....#.....#....G..#",
+      "####################",
     ],
-    interactables: [
-      {
-        marker: "I", cls: "vendor", label: "Spice Stall", actionLabel: "Browse", radiusPct: 8,
-        effect: { focus: 1, barrier: 1 },
-        mazePuzzle: {
-          hint: 'Wake both stall sigils to slide open the shuttered stall lane. Either order works.',
-          solvedText: 'A shuttered lane slides aside near the spice stall.',
-          lockedText: 'The spice stall is tucked behind a shuttered lane. Find the market sigils.',
-          steps: [
-            { marker: 'a', label: 'Ledger Sigil' },
-            { marker: 'b', label: 'Coin Sigil' },
-          ],
-          wallTiles: [{ col: 15, row: 6 }],
-        },
-        foundText: "A quick tonic clears your head and throws a ward over your shoulders.",
-      },
-      {
-        marker: "J", cls: "coinpile", label: "Lucky Purse", actionLabel: "Pocket", radiusPct: 8,
-        effect: { damageBoost: 1.14 },
-        mazePuzzle: {
-          hint: 'Tap the purse sigil to pop the coin latch.',
-          solvedText: 'The purse latch clicks open.',
-          lockedText: 'A little market latch keeps the lucky purse tucked away. Find the purse sigil.',
-          steps: [
-            { marker: 'c', label: 'Purse Sigil' },
-          ],
-          wallTiles: [{ col: 4, row: 3 }],
-        },
-        foundText: "A lucky glint boosts your nerve. Your opening strike will carry more bite.",
-      },
-      {
-        marker: "K", cls: "stall", label: "Street Tonic", actionLabel: "Sip", radiusPct: 8,
-        effect: { heal: 6 },
-        mazePuzzle: {
-          hint: 'Wake the tonic sigil to slide back the stall screen.',
-          solvedText: 'A narrow stall screen rolls away near the tonic.',
-          lockedText: 'A cloth screen hides the street tonic. Find the tonic sigil.',
-          steps: [
-            { marker: 'd', label: 'Tonic Sigil' },
-          ],
-          wallTiles: [{ col: 10, row: 3 }],
-        },
-        foundText: "A sharp little tonic puts color back in your blood.",
-      },
-    ],
+    interactable: {
+      cls: "vendor", label: "Spice Stall", actionLabel: "Browse", radiusPct: 8,
+      effect: { focus: 1, barrier: 1 },
+      foundText: "A quick tonic steadies you. Start battle with +1 mana and a barrier.",
+    },
     props: [
-      { col: 6, row: 1, colSpan: 1, rowSpan: 12, cls: "stall", solid: false },
-      { col: 13, row: 1, colSpan: 1, rowSpan: 12, cls: "stall", solid: false },
+      { col: 6, row: 1, colSpan: 1, rowSpan: 10, cls: "stall", solid: false },
+      { col: 12, row: 1, colSpan: 1, rowSpan: 10, cls: "stall", solid: false },
       { col: 3, row: 5, colSpan: 2, rowSpan: 1, cls: "cart", solid: false },
-      { col: 16, row: 4, colSpan: 1, rowSpan: 2, cls: "lamp", solid: false },
+      { col: 15, row: 4, colSpan: 1, rowSpan: 2, cls: "lamp", solid: false },
       { col: 9, row: 8, colSpan: 2, rowSpan: 1, cls: "fountain", solid: false },
-      { col: 10, row: 13, colSpan: 1, rowSpan: 1, cls: "coinpile", solid: false },
     ],
   },
   "fey-forest": {
     theme: "forest",
-    blurb: "Move through the open glade, veer into shrine hollows, and branch around the overgrowth before the thorn arch.",
+    blurb: "Follow the winding deer-path, probe the shrine hollows, and find the thorn arch deep in the overgrowth.",
     tileSize: 72,
-    skirmishField: { col: 11, row: 1, cols: 4, rows: 6, chance: 0.15, label: "Fey Switch Grove" },
     layout: [
-      "#####################",
-      "#.......#......####.#",
-      "#...#...#......#..#.#",
-      "#...#.a.#........J#.#",
-      "#...#...#......#..#.#",
-      "#...#...#......####.#",
-      "#...#..........c....#",
-      "#.........b.........#",
-      "#...........#.......#",
-      "#..I........#.......#",
-      "#.....K.....#..####.#",
-      "#....d......#.......#",
-      "#.S.........#.....G.#",
-      "#...................#",
-      "#####################",
+      "####################",
+      "#S...#.............#",
+      "###.#.###########..#",
+      "#...#.....#.....#..#",
+      "#.#####.#.#.###.#.##",
+      "#.....#.#...#...#..#",
+      "#####.#.#####.###..#",
+      "#...#.#..I..#...#..#",
+      "#.#.#.#####.###.#..#",
+      "#.#...#...#.....#..#",
+      "#.#####.#.#######..#",
+      "#.......#........G.#",
+      "####################",
     ],
-    interactables: [
-      {
-        marker: "I", cls: "flower", label: "Moonbloom", actionLabel: "Gather", radiusPct: 8,
-        effect: { heal: 6, focus: 1 },
-        mazePuzzle: {
-          hint: 'Wake the bloom sigil to part the leaves around the moonbloom patch.',
-          solvedText: 'The leaves peel back around the moonbloom.',
-          lockedText: 'Thick leaves smother the moonbloom patch. Find the bloom sigil.',
-          steps: [
-            { marker: 'c', label: 'Bloom Sigil' },
-          ],
-          wallTiles: [{ col: 3, row: 8 }],
-        },
-        foundText: "The moonbloom steadies your pulse and clears the static from your thoughts.",
-      },
-      {
-        marker: "J", cls: "shrine", label: "Root Shrine", actionLabel: "Pray", radiusPct: 8,
-        effect: { barrier: 1 },
-        mazePuzzle: {
-          hint: 'Answer the hidden root sigils to peel back the briar wall around the shrine.',
-          solvedText: 'The briars unwind and expose the root shrine path.',
-          lockedText: 'Briars knot around the shrine hollow. Find the root sigils.',
-          steps: [
-            { marker: 'a', label: 'Moss Sigil' },
-            { marker: 'b', label: 'Thorn Sigil' },
-          ],
-          wallTiles: [{ col: 15, row: 3 }],
-        },
-        foundText: "Old bark-light folds around you. Start battle with a barrier.",
-      },
-      {
-        marker: "K", cls: "cache", label: "Hunter's Cache", actionLabel: "Open", radiusPct: 8,
-        effect: { damageBoost: 1.16 },
-        mazePuzzle: {
-          hint: 'Touch the hunter sigil to pull back the cache briars.',
-          solvedText: 'The cache briars loosen and sag away.',
-          lockedText: 'A knot of briars hides the hunter\'s cache. Find the hunter sigil.',
-          steps: [
-            { marker: 'd', label: 'Hunter Sigil' },
-          ],
-          wallTiles: [{ col: 5, row: 11 }],
-        },
-        foundText: "A tucked-away charm sharpens your opening attack.",
-      },
-    ],
+    interactable: {
+      cls: "flower", label: "Moonbloom", actionLabel: "Gather", radiusPct: 8,
+      effect: { heal: 6, focus: 1 },
+      foundText: "The moonbloom steadies your pulse. Start battle a little healthier and clearer.",
+    },
     props: [
-      { col: 5, row: 1, colSpan: 1, rowSpan: 12, cls: "tree", solid: false },
-      { col: 11, row: 3, colSpan: 1, rowSpan: 10, cls: "roots", solid: false },
-      { col: 15, row: 4, colSpan: 2, rowSpan: 1, cls: "bramble", solid: false },
-      { col: 3, row: 9, colSpan: 1, rowSpan: 1, cls: "shrine", solid: false },
-      { col: 10, row: 13, colSpan: 1, rowSpan: 1, cls: "mushroom", solid: false },
+      { col: 5, row: 1, colSpan: 1, rowSpan: 10, cls: "tree", solid: false },
+      { col: 10, row: 3, colSpan: 1, rowSpan: 8, cls: "roots", solid: false },
+      { col: 14, row: 4, colSpan: 2, rowSpan: 1, cls: "bramble", solid: false },
+      { col: 12, row: 7, colSpan: 1, rowSpan: 1, cls: "shrine", solid: false },
+      { col: 17, row: 9, colSpan: 1, rowSpan: 1, cls: "mushroom", solid: false },
     ],
   },
   "gutterglass": {
     theme: "gutterglass",
-    blurb: "Pick through the central basin, duck down service spurs, and work the crystal branches before the shard gate.",
+    blurb: "Navigate the sewer arteries, circle the crystal chambers, and reach the fracture gate through the shardworks.",
     tileSize: 70,
-    skirmishField: { col: 9, row: 8, cols: 4, rows: 6, chance: 0.16, label: "Shard Switch Field" },
     layout: [
-      "#####################",
-      "#........#.....c....#",
-      "#.S..#...#......#...#",
-      "#....#...#.b....#...#",
-      "#....#...#......#...#",
-      "#....#...#......#...#",
-      "#....#.....I...####.#",
-      "#..............#..#.#",
-      "#..#####.....#...J#.#",
-      "#..d.........#.#..#.#",
-      "#......K.....#.####.#",
-      "#..a.........#......#",
-      "#............#....G.#",
-      "#...................#",
-      "#####################",
+      "####################",
+      "#S....#......#.....#",
+      "#.###.#.####.#.###.#",
+      "#...#.#....#.#...#.#",
+      "###.#.####.#.###.#.#",
+      "#...#....#.#.#...#.#",
+      "#.#####.#.#.#.###.#.#",
+      "#.#..I..#.#.#...#.#.#",
+      "#.#.#####.#.###.#.#.#",
+      "#...#.....#...#...#.#",
+      "###.#.#####.#.#####.#",
+      "#.....#.....#....G..#",
+      "####################",
     ],
-    interactables: [
-      {
-        marker: "I", cls: "mirror", label: "Cracked Mirror", actionLabel: "Peer In", radiusPct: 8,
-        effect: { barrier: 1, damageBoost: 1.12 },
-        mazePuzzle: {
-          hint: 'Wake the mirror sigil to crack open the glass seam.',
-          solvedText: 'The glass seam splits and the mirror lane opens.',
-          lockedText: 'A glass seam blocks the cracked mirror. Find the mirror sigil.',
-          steps: [
-            { marker: 'c', label: 'Mirror Sigil' },
-          ],
-          wallTiles: [{ col: 10, row: 6 }],
-        },
-        foundText: "A reflected path flickers through the glass. You leave with a ward and a sharpened first blow.",
-      },
-      {
-        marker: "J", cls: "valve", label: "Pressure Valve", actionLabel: "Turn", radiusPct: 8,
-        effect: { focus: 2 },
-        mazePuzzle: {
-          hint: 'Prime the sewer sigils to unlock the pressure-valve side chamber.',
-          solvedText: 'Metal bolts slam back and the valve chamber opens.',
-          lockedText: 'The pressure valve sits behind a locked service seam. Find the sewer sigils.',
-          steps: [
-            { marker: 'a', label: 'Steam Sigil' },
-            { marker: 'b', label: 'Drain Sigil' },
-          ],
-          wallTiles: [{ col: 15, row: 8 }],
-        },
-        foundText: "Steam hisses loose and your thoughts click into place. Start battle with +2 mana.",
-      },
-      {
-        marker: "K", cls: "crystal", label: "Shard Cache", actionLabel: "Chip", radiusPct: 8,
-        effect: { heal: 5 },
-        mazePuzzle: {
-          hint: 'Charge the shard sigil to roll away the crystal lip.',
-          solvedText: 'A crystal lip fractures and exposes the shard cache.',
-          lockedText: 'A crystal lip blocks the shard cache. Find the shard sigil.',
-          steps: [
-            { marker: 'd', label: 'Shard Sigil' },
-          ],
-          wallTiles: [{ col: 6, row: 10 }],
-        },
-        foundText: "You pocket a resonant shard and shake off some pain.",
-      },
-    ],
+    interactable: {
+      cls: "mirror", label: "Cracked Mirror", actionLabel: "Peer In", radiusPct: 8,
+      effect: { barrier: 1, damageBoost: 1.2 },
+      foundText: "A reflected path flickers through the glass. Start battle shielded, with your next strike sharpened.",
+    },
     props: [
-      { col: 6, row: 1, colSpan: 1, rowSpan: 12, cls: "pipe", solid: false },
-      { col: 13, row: 1, colSpan: 1, rowSpan: 12, cls: "crystal", solid: false },
-      { col: 3, row: 9, colSpan: 2, rowSpan: 1, cls: "glassbank", solid: false },
-      { col: 16, row: 4, colSpan: 2, rowSpan: 1, cls: "glassbank", solid: false },
-      { col: 10, row: 13, colSpan: 1, rowSpan: 1, cls: "valve", solid: false },
+      { col: 6, row: 1, colSpan: 1, rowSpan: 10, cls: "pipe", solid: false },
+      { col: 12, row: 1, colSpan: 1, rowSpan: 10, cls: "crystal", solid: false },
+      { col: 3, row: 6, colSpan: 2, rowSpan: 1, cls: "glassbank", solid: false },
+      { col: 15, row: 7, colSpan: 2, rowSpan: 1, cls: "glassbank", solid: false },
+      { col: 9, row: 7, colSpan: 1, rowSpan: 1, cls: "mirror", solid: false },
     ],
   },
   "palace": {
     theme: "palace",
-    blurb: "Cross the open forecourt, explore the side courts, and branch through the royal grounds before the sealed gate.",
+    blurb: "Work through the forecourt hedge-maze, pass the ward braziers, and stand before the royal gate.",
     tileSize: 72,
-    skirmishField: { col: 11, row: 8, cols: 4, rows: 6, chance: 0.14, label: "Royal Switch Court" },
     layout: [
-      "#####################",
-      "#..............c....#",
-      "#.S...#......#......#",
-      "#.....#.aJ...#......#",
-      "#.....#......#......#",
-      "#.....#......#.####.#",
-      "#.....#......#.#..#.#",
-      "#................I#.#",
-      "#..#####..#....#..#.#",
-      "#..d......#....####.#",
-      "#.........#....#....#",
-      "#..K....b.#....#....#",
-      "#.........#....#..G.#",
-      "#...................#",
-      "#####################",
+      "####################",
+      "#S....#......#.....#",
+      "#.###.#.####.#.###.#",
+      "#...#.#....#.#.#...#",
+      "###.#.####.#.#.#.###",
+      "#...#....#.#...#...#",
+      "#.#####.#.#.#####.#.#",
+      "#.#..I..#.#.....#.#.#",
+      "#.#.#####.#####.#.#.#",
+      "#...#.....#...#...#.#",
+      "###.#.#####.#.#####.#",
+      "#.....#.....#....G..#",
+      "####################",
     ],
-    interactables: [
-      {
-        marker: "I", cls: "brazier", label: "Ward Brazier", actionLabel: "Kindle", radiusPct: 8,
-        effect: { focus: 2, barrier: 1 },
-        mazePuzzle: {
-          hint: 'Kindle both royal sigils to unseal the brazier alcove. Either order works.',
-          solvedText: 'A royal ward slides aside and reveals the brazier alcove.',
-          lockedText: 'A royal ward seals the brazier alcove. Find the palace sigils.',
-          steps: [
-            { marker: 'a', label: 'West Court Sigil' },
-            { marker: 'b', label: 'East Court Sigil' },
-          ],
-          wallTiles: [{ col: 15, row: 7 }],
-        },
-        foundText: "Royal embers gather around you. Start battle with +2 mana and a barrier.",
-      },
-      {
-        marker: "J", cls: "fountain", label: "Royal Fountain", actionLabel: "Drink", radiusPct: 8,
-        effect: { heal: 8 },
-        mazePuzzle: {
-          hint: 'Touch the fountain sigil to part the court rail around the spring.',
-          solvedText: 'The court rail swings open around the fountain.',
-          lockedText: 'A court rail blocks the royal fountain. Find the fountain sigil.',
-          steps: [
-            { marker: 'c', label: 'Fountain Sigil' },
-          ],
-          wallTiles: [{ col: 8, row: 3 }],
-        },
-        foundText: "Cold palace water steadies your nerves and patches some wear.",
-      },
-      {
-        marker: "K", cls: "banner", label: "War Table", actionLabel: "Study", radiusPct: 8,
-        effect: { damageBoost: 1.18 },
-        mazePuzzle: {
-          hint: 'Wake the strategy sigil to roll back the velvet cord around the war table.',
-          solvedText: 'The velvet cord draws back from the war table.',
-          lockedText: 'A velvet cord keeps the war table sealed off. Find the strategy sigil.',
-          steps: [
-            { marker: 'd', label: 'Strategy Sigil' },
-          ],
-          wallTiles: [{ col: 4, row: 11 }],
-        },
-        foundText: "A final glance at old battle routes sharpens your opening plan.",
-      },
-    ],
+    interactable: {
+      cls: "brazier", label: "Ward Brazier", actionLabel: "Kindle", radiusPct: 8,
+      effect: { focus: 2, barrier: 1 },
+      foundText: "Royal embers gather around you. Start battle with +2 mana and a barrier.",
+    },
     props: [
-      { col: 6, row: 1, colSpan: 1, rowSpan: 12, cls: "hedge", solid: false },
-      { col: 13, row: 1, colSpan: 1, rowSpan: 12, cls: "hedge", solid: false },
+      { col: 6, row: 1, colSpan: 1, rowSpan: 10, cls: "hedge", solid: false },
+      { col: 12, row: 1, colSpan: 1, rowSpan: 10, cls: "hedge", solid: false },
       { col: 3, row: 4, colSpan: 1, rowSpan: 2, cls: "statue", solid: false },
+      { col: 9, row: 7, colSpan: 1, rowSpan: 1, cls: "brazier", solid: false },
       { col: 16, row: 4, colSpan: 1, rowSpan: 2, cls: "statue", solid: false },
-      { col: 10, row: 13, colSpan: 1, rowSpan: 1, cls: "fountain", solid: false },
-      { col: 18, row: 11, colSpan: 1, rowSpan: 2, cls: "banner", solid: false },
+      { col: 17, row: 10, colSpan: 1, rowSpan: 2, cls: "banner", solid: false },
     ],
   },
   "default": {
     theme: "generic",
-    blurb: "Scout an open approach zone, check a few side paths, and reach the encounter gate.",
+    blurb: "Scout a small route, inspect the terrain, and reach the encounter gate.",
     tileSize: 70,
-    skirmishField: { col: 11, row: 8, cols: 4, rows: 6, chance: 0.16, label: "Skirmish Switches" },
     layout: [
-      "#####################",
-      "#S.a....#......#....#",
-      "#.......#......#....#",
-      "#..J....#..I...#....#",
-      "#.......#......#....#",
-      "#....####......####.#",
-      "#.........b.........#",
-      "#..###......###.....#",
-      "#..#....K...#.......#",
-      "#..#........#.......#",
-      "#..#........#.......#",
-      "#..####..####.......#",
-      "#.................G.#",
-      "#....c..............#",
-      "#####################",
+      "################",
+      "#S....#......G#",
+      "#.##.#.####.#.#",
+      "#....#..I...#.#",
+      "#.######.####.#",
+      "#............##",
+      "################",
     ],
-    interactables: [
-      {
-        marker: "I", cls: "cache", label: "Supply Cache", actionLabel: "Open", radiusPct: 8,
-        effect: { focus: 1 },
-        mazePuzzle: {
-          hint: 'Touch the cache sigil to unlatch the supply nook.',
-          solvedText: 'The supply nook unlatches with a small click.',
-          lockedText: 'A latch bars the supply cache. Find the cache sigil.',
-          steps: [
-            { marker: 'a', label: 'Cache Sigil' },
-          ],
-          wallTiles: [{ col: 10, row: 3 }],
-        },
-        foundText: "You pocket a useful trinket. Start battle with +1 mana.",
-      },
-      {
-        marker: "J", cls: "medkit", label: "Field Bandage", actionLabel: "Use", radiusPct: 8,
-        effect: { heal: 5 },
-        mazePuzzle: {
-          hint: 'Light the bandage sigil to swing open the medic partition.',
-          solvedText: 'The medic partition folds away.',
-          lockedText: 'A medic partition blocks the field bandage. Find the bandage sigil.',
-          steps: [
-            { marker: 'b', label: 'Bandage Sigil' },
-          ],
-          wallTiles: [{ col: 3, row: 4 }],
-        },
-        foundText: "A quick patch job helps take the edge off.",
-      },
-      {
-        marker: "K", cls: "mirror", label: "Scout Mirror", actionLabel: "Check", radiusPct: 8,
-        effect: { damageBoost: 1.12 },
-        mazePuzzle: {
-          hint: 'Touch the scout sigil to slide back the mirror panel.',
-          solvedText: 'The mirror panel slides aside.',
-          lockedText: 'A small panel blocks the scout mirror. Find the scout sigil.',
-          steps: [
-            { marker: 'c', label: 'Scout Sigil' },
-          ],
-          wallTiles: [{ col: 7, row: 8 }],
-        },
-        foundText: "You catch a better angle on the coming fight.",
-      },
-    ],
+    interactable: {
+      cls: "cache", label: "Supply Cache", actionLabel: "Open", radiusPct: 8,
+      effect: { focus: 1 },
+      foundText: "You pocket a useful trinket. Start battle with +1 mana.",
+    },
     props: [
-      { col: 5, row: 1, colSpan: 1, rowSpan: 8, cls: "crate", solid: false },
-      { col: 11, row: 1, colSpan: 1, rowSpan: 8, cls: "barricade", solid: false },
+      { col: 5, row: 1, colSpan: 1, rowSpan: 5, cls: "crate", solid: false },
+      { col: 11, row: 1, colSpan: 1, rowSpan: 4, cls: "barricade", solid: false },
     ],
   },
 };
@@ -6608,15 +6320,14 @@ function normalizeApproachLayout(layout) {
 
 function getApproachLayoutMarkers(layoutRows) {
   if (!Array.isArray(layoutRows) || !layoutRows.length) return null;
-  const markers = { interactables: Object.create(null), puzzleNodes: Object.create(null) };
+  const markers = {};
   for (let row = 0; row < layoutRows.length; row += 1) {
     const line = String(layoutRows[row] || '');
     for (let col = 0; col < line.length; col += 1) {
       const ch = line[col];
       if (ch === 'S' && !markers.spawn) markers.spawn = { col, row };
       else if (ch === 'G' && !markers.gate) markers.gate = { col, row };
-      else if (/[A-Z0-9]/.test(ch) && ch !== 'S' && ch !== 'G') markers.interactables[ch] = { col, row };
-      else if (/[a-z]/.test(ch)) markers.puzzleNodes[ch] = { col, row };
+      else if (ch === 'I' && !markers.interactable) markers.interactable = { col, row };
     }
   }
   return markers;
@@ -6649,75 +6360,7 @@ function getApproachScene(locationId) {
   });
   const spawnPos = layoutMarkers?.spawn ? tileToPct(layoutMarkers.spawn.col, layoutMarkers.spawn.row) : { xPct: toSafeNum(src.spawn?.xPct, 12), yPct: toSafeNum(src.spawn?.yPct, 74) };
   const gatePos = layoutMarkers?.gate ? tileToPct(layoutMarkers.gate.col, layoutMarkers.gate.row) : { xPct: toSafeNum(src.gate?.xPct, 86), yPct: toSafeNum(src.gate?.yPct, 50) };
-  const legacyInteractables = src.interactable ? [{ ...src.interactable, marker: String(src.interactable?.marker || 'I') }] : [];
-  const sourceInteractables = Array.isArray(src.interactables) && src.interactables.length ? src.interactables : legacyInteractables;
-  const interactables = sourceInteractables.map((item, idx) => {
-    const marker = String(item?.marker || String.fromCharCode(73 + idx));
-    const markerPos = layoutMarkers?.interactables?.[marker] || null;
-    const id = String(item?.id || marker.toLowerCase());
-    const mazePuzzle = item?.mazePuzzle ? {
-      hint: String(item?.mazePuzzle?.hint || ''),
-      solvedText: String(item?.mazePuzzle?.solvedText || ''),
-      lockedText: String(item?.mazePuzzle?.lockedText || ''),
-      steps: (Array.isArray(item?.mazePuzzle?.steps) ? item.mazePuzzle.steps : []).map((step, stepIdx) => {
-        const stepMarker = String(step?.marker || String.fromCharCode(97 + stepIdx));
-        const nodePos = layoutMarkers?.puzzleNodes?.[stepMarker] || null;
-        const pct = nodePos ? tileToPct(nodePos.col, nodePos.row) : { xPct: toSafeNum(step?.xPct, 20), yPct: toSafeNum(step?.yPct, 70) };
-        return {
-          id: `${id}-node-${stepMarker}`,
-          marker: stepMarker,
-          label: String(step?.label || `Rune ${stepIdx + 1}`),
-          xPct: pct.xPct,
-          yPct: pct.yPct,
-          col: nodePos?.col ?? approachPctToTile(pct.xPct, pct.yPct, { _gridCache: { cols: gridCols, rows: gridRows } }).col,
-          row: nodePos?.row ?? approachPctToTile(pct.xPct, pct.yPct, { _gridCache: { cols: gridCols, rows: gridRows } }).row,
-          radiusPct: toSafeNum(step?.radiusPct, 7),
-          stepIndex: stepIdx,
-        };
-      }),
-      wallTiles: (Array.isArray(item?.mazePuzzle?.wallTiles) ? item.mazePuzzle.wallTiles : []).map((wall, wallIdx) => ({
-        id: `${id}-wall-${wallIdx}`,
-        col: clamp(Math.round(toSafeNum(wall?.col, 0)), 0, Math.max(0, gridCols - 1)),
-        row: clamp(Math.round(toSafeNum(wall?.row, 0)), 0, Math.max(0, gridRows - 1)),
-      })),
-    } : null;
-    return {
-      id,
-      marker,
-      xPct: markerPos ? tileToPct(markerPos.col, markerPos.row).xPct : toSafeNum(item?.xPct, 20),
-      yPct: markerPos ? tileToPct(markerPos.col, markerPos.row).yPct : toSafeNum(item?.yPct, 70),
-      wPct: toSafeNum(item?.wPct, Math.max(7, 100 / Math.max(1, gridCols))),
-      hPct: toSafeNum(item?.hPct, Math.max(9, 100 / Math.max(1, gridRows))),
-      cls: String(item?.cls || 'cache'),
-      label: String(item?.label || 'Supply Cache'),
-      actionLabel: String(item?.actionLabel || 'Inspect'),
-      radiusPct: toSafeNum(item?.radiusPct, 8),
-      foundText: String(item?.foundText || 'You found a small edge for the next battle.'),
-      mazePuzzle,
-      effect: {
-        heal: toSafeNum(item?.effect?.heal, 0),
-        focus: toSafeNum(item?.effect?.focus, 0),
-        barrier: toSafeNum(item?.effect?.barrier, 0),
-        damageBoost: toSafeNum(item?.effect?.damageBoost, 0),
-      },
-    };
-  });
-  const puzzleNodes = [];
-  const puzzleWalls = [];
-  interactables.forEach((item) => {
-    if (!item?.mazePuzzle) return;
-    item.mazePuzzle.steps.forEach((step) => puzzleNodes.push({ ...step, interactableId: item.id, interactableLabel: item.label }));
-    item.mazePuzzle.wallTiles.forEach((wall) => puzzleWalls.push({ ...wall, interactableId: item.id, interactableLabel: item.label }));
-  });
-  const skirmishFields = (Array.isArray(src.skirmishFields) ? src.skirmishFields : (src.skirmishField ? [src.skirmishField] : [])).map((field, fieldIdx) => ({
-    id: String(field?.id || `${locationId || 'default'}-field-${fieldIdx + 1}`),
-    col: clamp(Math.round(toSafeNum(field?.col, 0)), 0, Math.max(0, gridCols - 1)),
-    row: clamp(Math.round(toSafeNum(field?.row, 0)), 0, Math.max(0, gridRows - 1)),
-    cols: Math.max(1, Math.round(toSafeNum(field?.cols ?? field?.colSpan, 4))),
-    rows: Math.max(1, Math.round(toSafeNum(field?.rows ?? field?.rowSpan, 6))),
-    chance: clamp(toSafeNum(field?.chance, APPROACH_SKIRMISH_DEFAULT_CHANCE), 0.03, 1),
-    label: String(field?.label || 'Skirmish Switches'),
-  }));
+  const interactPos = layoutMarkers?.interactable ? tileToPct(layoutMarkers.interactable.col, layoutMarkers.interactable.row) : null;
   return {
     theme: src.theme,
     blurb: src.blurb,
@@ -6735,10 +6378,23 @@ function getApproachScene(locationId) {
       cols: Math.max(8, Math.round(gridCols || APPROACH_GRID_DEFAULTS.cols)),
       rows: Math.max(6, Math.round(gridRows || APPROACH_GRID_DEFAULTS.rows)),
     },
-    interactables,
-    puzzleNodes,
-    puzzleWalls,
-    skirmishFields,
+    interactable: src.interactable ? {
+      xPct: interactPos?.xPct ?? toSafeNum(src.interactable?.xPct, 20),
+      yPct: interactPos?.yPct ?? toSafeNum(src.interactable?.yPct, 70),
+      wPct: toSafeNum(src.interactable?.wPct, Math.max(7, 100 / Math.max(1, gridCols))),
+      hPct: toSafeNum(src.interactable?.hPct, Math.max(9, 100 / Math.max(1, gridRows))),
+      cls: String(src.interactable?.cls || 'cache'),
+      label: String(src.interactable?.label || 'Supply Cache'),
+      actionLabel: String(src.interactable?.actionLabel || 'Inspect'),
+      radiusPct: toSafeNum(src.interactable?.radiusPct, 8),
+      foundText: String(src.interactable?.foundText || 'You found a small edge for the next battle.'),
+      effect: {
+        heal: toSafeNum(src.interactable?.effect?.heal, 0),
+        focus: toSafeNum(src.interactable?.effect?.focus, 0),
+        barrier: toSafeNum(src.interactable?.effect?.barrier, 0),
+        damageBoost: toSafeNum(src.interactable?.effect?.damageBoost, 0),
+      },
+    } : null,
     props: Array.isArray(src.props) ? src.props.map((p) => {
       const rect = ('col' in (p || {})) ? approachTileRectToPct(p, gridCols, gridRows) : {
         xPct: toSafeNum(p?.xPct, 0),
@@ -6803,35 +6459,6 @@ function getApproachGrid(scene = APPROACH.scene) {
   return cache;
 }
 
-
-function getApproachMazePuzzleState(interactableId) {
-  if (!APPROACH.puzzleStates || typeof APPROACH.puzzleStates !== 'object') APPROACH.puzzleStates = Object.create(null);
-  if (!APPROACH.puzzleStates[interactableId]) {
-    APPROACH.puzzleStates[interactableId] = { solved: false, progress: 0, activated: Object.create(null) };
-  }
-  return APPROACH.puzzleStates[interactableId];
-}
-
-function isApproachMazePuzzleSolved(interactableId) {
-  return !!(interactableId && getApproachMazePuzzleState(interactableId).solved);
-}
-
-function getApproachPuzzleNodeById(nodeId, scene = APPROACH.scene) {
-  if (!scene || !Array.isArray(scene.puzzleNodes)) return null;
-  return scene.puzzleNodes.find((node) => node.id === nodeId) || null;
-}
-
-function getApproachPuzzleNodeTile(nodeId, scene = APPROACH.scene) {
-  const node = getApproachPuzzleNodeById(nodeId, scene);
-  if (!node) return { col: 0, row: 0 };
-  return { col: clamp(Math.round(toSafeNum(node.col, 0)), 0, Math.max(0, (scene?.grid?.cols || 1) - 1)), row: clamp(Math.round(toSafeNum(node.row, 0)), 0, Math.max(0, (scene?.grid?.rows || 1) - 1)) };
-}
-
-function isApproachPuzzleWallClosedAt(col, row, scene = APPROACH.scene) {
-  if (!scene || !Array.isArray(scene.puzzleWalls)) return false;
-  return scene.puzzleWalls.some((wall) => wall.col === col && wall.row === row && !isApproachMazePuzzleSolved(wall.interactableId));
-}
-
 function approachPctToTile(xPct, yPct, scene = APPROACH.scene) {
   const grid = getApproachGrid(scene);
   if (!grid) return { col: 0, row: 0 };
@@ -6853,9 +6480,7 @@ function isApproachTileWalkable(col, row, scene = APPROACH.scene) {
   const grid = getApproachGrid(scene);
   if (!grid) return false;
   if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return false;
-  if (grid.blocked[row][col]) return false;
-  if (isApproachPuzzleWallClosedAt(col, row, scene)) return false;
-  return true;
+  return !grid.blocked[row][col];
 }
 
 function findNearestWalkableApproachTile(start, scene = APPROACH.scene) {
@@ -6884,48 +6509,26 @@ function findNearestWalkableApproachTile(start, scene = APPROACH.scene) {
   return origin;
 }
 
-function getApproachInteractableById(interactableId, scene = APPROACH.scene) {
-  if (!scene || !Array.isArray(scene.interactables)) return null;
-  if (interactableId == null) return scene.interactables[0] || null;
-  return scene.interactables.find((item) => item.id === interactableId || item.marker === interactableId) || null;
-}
-
-function getApproachAnchorTile(kind, scene = APPROACH.scene, interactableId = null) {
+function getApproachAnchorTile(kind, scene = APPROACH.scene) {
   const grid = getApproachGrid(scene);
   if (!grid) return { col: 0, row: 0 };
-  let cacheKey = '_spawnTile';
-  let source = scene.spawn;
-  if (kind === 'gate') {
-    cacheKey = '_gateTile';
-    source = scene.gate;
-  } else if (kind === 'interactable') {
-    const interactable = getApproachInteractableById(interactableId, scene);
-    if (!interactable) return { col: 0, row: 0 };
-    if (!scene._interactableTiles) scene._interactableTiles = Object.create(null);
-    cacheKey = interactable.id;
-    if (scene._interactableTiles[cacheKey]) return scene._interactableTiles[cacheKey];
-    source = interactable;
-    const tile = findNearestWalkableApproachTile(approachPctToTile(source?.xPct, source?.yPct, scene), scene);
-    scene._interactableTiles[cacheKey] = tile;
-    return tile;
-  }
+  const cacheKey = kind === 'gate' ? '_gateTile' : (kind === 'interactable' ? '_interactableTile' : '_spawnTile');
   if (scene[cacheKey]) return scene[cacheKey];
+  const source = kind === 'gate' ? scene.gate : (kind === 'interactable' ? scene.interactable : scene.spawn);
   const tile = findNearestWalkableApproachTile(approachPctToTile(source?.xPct, source?.yPct, scene), scene);
   scene[cacheKey] = tile;
   return tile;
 }
 
-function getApproachTileDistanceToAnchor(kind, scene = APPROACH.scene, interactableId = null) {
-  const anchor = getApproachAnchorTile(kind, scene, interactableId);
+function getApproachTileDistanceToAnchor(kind, scene = APPROACH.scene) {
+  const anchor = getApproachAnchorTile(kind, scene);
   return Math.hypot(APPROACH.tileCol - anchor.col, APPROACH.tileRow - anchor.row);
 }
 
-function getApproachAnchorRadiusTiles(kind, scene = APPROACH.scene, interactableId = null) {
+function getApproachAnchorRadiusTiles(kind, scene = APPROACH.scene) {
   const grid = getApproachGrid(scene);
   if (!grid) return 1;
-  const source = kind === 'gate'
-    ? scene?.gate
-    : getApproachInteractableById(interactableId, scene);
+  const source = kind === 'gate' ? scene?.gate : scene?.interactable;
   const radiusPct = toSafeNum(source?.radiusPct, 10);
   return Math.max(1, radiusPct / Math.min(grid.cellW, grid.cellH));
 }
@@ -7021,12 +6624,6 @@ function attemptApproachStep(dir, scene = APPROACH.scene) {
   return startApproachMoveToTile(nextCol, nextRow, scene);
 }
 
-function getApproachHeldDir() {
-  if (APPROACH.preferredDir && APPROACH.keys[APPROACH.preferredDir]) return APPROACH.preferredDir;
-  const fallbackOrder = ['up', 'down', 'left', 'right'];
-  return fallbackOrder.find((dir) => !!APPROACH.keys[dir]) || null;
-}
-
 function getApproachTileGridHtml(scene = APPROACH.scene) {
   const grid = getApproachGrid(scene);
   if (!grid) return '';
@@ -7034,8 +6631,7 @@ function getApproachTileGridHtml(scene = APPROACH.scene) {
   for (let row = 0; row < grid.rows; row += 1) {
     for (let col = 0; col < grid.cols; col += 1) {
       const blocked = !!grid.blocked[row][col];
-      const sealed = isApproachPuzzleWallClosedAt(col, row, scene);
-      cells.push(`<span class="rpgApproachTile${blocked ? ' isBlocked' : ''}${sealed ? ' isSealed' : ''}" aria-hidden="true"></span>`);
+      cells.push(`<span class="rpgApproachTile${blocked ? ' isBlocked' : ''}" aria-hidden="true"></span>`);
     }
   }
   return `<div class="rpgApproachTileGrid" style="grid-template-columns:repeat(${grid.cols},1fr); grid-template-rows:repeat(${grid.rows},1fr);" aria-hidden="true">${cells.join('')}</div>`;
@@ -7058,7 +6654,6 @@ function resetLocationApproach() {
   APPROACH.targetY = null;
   APPROACH.pathTiles = [];
   APPROACH.queuedDir = null;
-  APPROACH.preferredDir = null;
   APPROACH.moving = false;
   APPROACH.moveElapsed = 0;
   APPROACH.moveFromX = 12;
@@ -7070,239 +6665,13 @@ function resetLocationApproach() {
   APPROACH.lastTs = 0;
   APPROACH.keys = Object.create(null);
   APPROACH.nearGate = false;
-  APPROACH.nearInteractableId = null;
-  APPROACH.nearPuzzleNodeId = null;
-  APPROACH.nearEncounterTileId = null;
-  APPROACH.interactedIds = Object.create(null);
-  APPROACH.bonuses = [];
-  APPROACH.puzzleStates = Object.create(null);
-  APPROACH.encounterTiles = [];
-  APPROACH.encounterTileStates = Object.create(null);
-  APPROACH.statusMessage = '';
-  APPROACH.puzzle = {
-    active: false,
-    interactableId: null,
-    prompt: '',
-    hint: '',
-    sequence: [],
-    entered: [],
-    message: '',
-  };
+  APPROACH.nearInteractable = false;
+  APPROACH.interacted = false;
+  APPROACH.bonus = null;
   if (APPROACH.rafId) {
     window.cancelAnimationFrame(APPROACH.rafId);
     APPROACH.rafId = 0;
   }
-}
-
-
-function captureApproachSnapshot() {
-  if (!APPROACH.active || !APPROACH.scene) return null;
-  return {
-    locationId: APPROACH.locationId,
-    tileCol: APPROACH.tileCol,
-    tileRow: APPROACH.tileRow,
-    xPct: APPROACH.xPct,
-    yPct: APPROACH.yPct,
-    interactedIds: { ...(APPROACH.interactedIds || {}) },
-    bonuses: Array.isArray(APPROACH.bonuses) ? APPROACH.bonuses.map((bonus) => cloneApproachBonus(bonus)).filter(Boolean) : [],
-    puzzleStates: JSON.parse(JSON.stringify(APPROACH.puzzleStates || {})),
-    encounterTiles: Array.isArray(APPROACH.encounterTiles) ? APPROACH.encounterTiles.map((tile) => ({ ...tile })) : [],
-    encounterTileStates: JSON.parse(JSON.stringify(APPROACH.encounterTileStates || {})),
-    statusMessage: String(APPROACH.statusMessage || ''),
-  };
-}
-
-function getApproachReservedTileKeySet(scene = APPROACH.scene) {
-  const reserved = new Set();
-  const push = (col, row) => {
-    if (!Number.isFinite(col) || !Number.isFinite(row)) return;
-    reserved.add(`${Math.round(col)},${Math.round(row)}`);
-  };
-  const spawn = getApproachAnchorTile('spawn', scene);
-  const gate = getApproachAnchorTile('gate', scene);
-  push(spawn.col, spawn.row);
-  push(gate.col, gate.row);
-  (Array.isArray(scene?.interactables) ? scene.interactables : []).forEach((item) => {
-    const tile = getApproachAnchorTile('interactable', scene, item.id);
-    push(tile.col, tile.row);
-  });
-  (Array.isArray(scene?.puzzleNodes) ? scene.puzzleNodes : []).forEach((node) => push(node.col, node.row));
-  (Array.isArray(scene?.puzzleWalls) ? scene.puzzleWalls : []).forEach((wall) => push(wall.col, wall.row));
-  return reserved;
-}
-
-function buildApproachEncounterTiles(scene = APPROACH.scene, locationId = APPROACH.locationId) {
-  const grid = getApproachGrid(scene);
-  if (!grid) return [];
-  const reserved = getApproachReservedTileKeySet(scene);
-  const fields = Array.isArray(scene?.skirmishFields) ? scene.skirmishFields : [];
-
-  if (fields.length) {
-    const picked = [];
-    fields.forEach((field, fieldIdx) => {
-      const startCol = clamp(Math.round(toSafeNum(field?.col, 0)), 0, Math.max(0, grid.cols - 1));
-      const startRow = clamp(Math.round(toSafeNum(field?.row, 0)), 0, Math.max(0, grid.rows - 1));
-      const fieldCols = Math.max(1, Math.round(toSafeNum(field?.cols, 4)));
-      const fieldRows = Math.max(1, Math.round(toSafeNum(field?.rows, 6)));
-      for (let row = startRow; row < Math.min(grid.rows, startRow + fieldRows); row += 1) {
-        for (let col = startCol; col < Math.min(grid.cols, startCol + fieldCols); col += 1) {
-          if (!isApproachTileWalkable(col, row, scene)) continue;
-          const key = `${col},${row}`;
-          if (reserved.has(key)) continue;
-          picked.push({
-            id: `${locationId || 'default'}-skirmish-${fieldIdx + 1}-${col}-${row}`,
-            fieldId: String(field?.id || `${locationId || 'default'}-field-${fieldIdx + 1}`),
-            col,
-            row,
-            chance: clamp(toSafeNum(field?.chance, APPROACH_SKIRMISH_DEFAULT_CHANCE), 0.03, 1),
-            label: String(field?.label || 'Skirmish Switch'),
-          });
-        }
-      }
-    });
-    return picked;
-  }
-
-  const gate = getApproachAnchorTile('gate', scene);
-  const spawn = getApproachAnchorTile('spawn', scene);
-  const candidates = [];
-  for (let row = 0; row < grid.rows; row += 1) {
-    for (let col = 0; col < grid.cols; col += 1) {
-      if (!isApproachTileWalkable(col, row, scene)) continue;
-      const key = `${col},${row}`;
-      if (reserved.has(key)) continue;
-      const spawnDist = Math.abs(col - spawn.col) + Math.abs(row - spawn.row);
-      const gateDist = Math.abs(col - gate.col) + Math.abs(row - gate.row);
-      if (spawnDist < 3 || gateDist < 3) continue;
-      let openNeighbors = 0;
-      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dy]) => {
-        if (isApproachTileWalkable(col + dx, row + dy, scene)) openNeighbors += 1;
-      });
-      if (openNeighbors < 2) continue;
-      candidates.push({ col, row, bias: Math.random() });
-    }
-  }
-  candidates.sort((a, b) => a.bias - b.bias);
-  const fallback = [];
-  for (const candidate of candidates) {
-    if (fallback.length >= 4) break;
-    const tooClose = fallback.some((item) => (Math.abs(item.col - candidate.col) + Math.abs(item.row - candidate.row)) < 2);
-    if (tooClose) continue;
-    fallback.push({
-      id: `${locationId || 'default'}-skirmish-fallback-${fallback.length + 1}`,
-      col: candidate.col,
-      row: candidate.row,
-      chance: APPROACH_SKIRMISH_DEFAULT_CHANCE,
-      label: 'Skirmish Switch',
-    });
-  }
-  return fallback;
-}
-
-function getApproachEncounterTileById(tileId) {
-  return (Array.isArray(APPROACH.encounterTiles) ? APPROACH.encounterTiles : []).find((tile) => tile.id === tileId) || null;
-}
-
-function getApproachEncounterTileAt(col, row) {
-  return (Array.isArray(APPROACH.encounterTiles) ? APPROACH.encounterTiles : []).find((tile) => tile.col === col && tile.row === row) || null;
-}
-
-function isApproachEncounterTileSpent(tileId) {
-  return !!(tileId && APPROACH.encounterTileStates && APPROACH.encounterTileStates[tileId]?.spent);
-}
-
-function getNearbyApproachEncounterTile() {
-  if (!Array.isArray(APPROACH.encounterTiles) || !APPROACH.encounterTiles.length) return null;
-  return APPROACH.encounterTiles.find((tile) => !isApproachEncounterTileSpent(tile.id) && tile.col === APPROACH.tileCol && tile.row === APPROACH.tileRow) || null;
-}
-
-function buildApproachSkirmishEnemy(loc) {
-  const set = buildEncounterSetForLocation(loc).slice(0, 2).filter(Boolean);
-  if (!set.length) return ENEMIES[0];
-  return set[Math.floor(Math.random() * set.length)] || set[0];
-}
-
-function reopenApproachFromSnapshot(snapshot, fallbackMessage = '') {
-  const snap = snapshot && typeof snapshot === 'object' ? snapshot : null;
-  const locId = snap?.locationId || activeLocationId || (APPROACH.locationId || null) || LOCATIONS[0]?.id || null;
-  if (!locId) return;
-  __exitBossMusic();
-  closeMagicMenu();
-  closeInventoryMenu();
-  resetVisuals();
-  state = makeLobbyState();
-  syncKnownSpells(false);
-  renderIntent(null);
-  setEffectBanner('—', 'neutral');
-  setPhase('select');
-  render();
-  openLocationPicker();
-  const mergedSnapshot = snap ? { ...snap } : { locationId: locId };
-  if (fallbackMessage) {
-    mergedSnapshot.statusMessage = snap?.statusMessage ? `${fallbackMessage} ${snap.statusMessage}` : fallbackMessage;
-  }
-  renderLocationApproach(locId, mergedSnapshot);
-}
-
-function startApproachSkirmishEncounter(tile) {
-  if (!tile || !APPROACH.active) return false;
-  const loc = getLocationById(APPROACH.locationId || activeLocationId || '') || LOCATIONS[0] || null;
-  const snapshot = captureApproachSnapshot();
-  if (!snapshot || !loc) return false;
-  if (!snapshot.encounterTileStates) snapshot.encounterTileStates = {};
-  snapshot.encounterTileStates[tile.id] = { spent: true, triggered: true };
-  const pendingApproachBonuses = Array.isArray(snapshot.bonuses)
-    ? snapshot.bonuses.map((bonus) => cloneApproachBonus(bonus)).filter(Boolean)
-    : [];
-
-  window.setTimeout(() => {
-    try {
-      const safeLoc = setActiveLocation(loc.id) || loc;
-      const enemy = buildApproachSkirmishEnemy(safeLoc);
-      closeMagicMenu();
-      closeInventoryMenu();
-      lootResolve = null;
-      if (isLootOpen()) closeLootScreen();
-      if (lootTimer) window.clearTimeout(lootTimer);
-      lootTimer = 0;
-      closeLocationPicker();
-      resetVisuals();
-      __exitBossMusic();
-      activeEnemySet = [enemy];
-      state = makeInitialState([enemy], safeLoc.id, { preserveEnemySetLength: true, battleMode: 'approach-skirmish', returnToApproach: snapshot });
-      pendingApproachBonuses.forEach((bonus) => applyApproachBonusToBattle(bonus, safeLoc));
-      state.log = [
-        `A skirmish sigil flares in ${safeLoc?.name || 'the approach'}.`,
-        `${enemy.name} lunges from the side path.`,
-        'Your turn.',
-      ];
-      syncKnownSpells(false);
-      state.enemy.intent = computeEnemyIntent();
-      renderIntent(state.enemy.intent);
-      setEffectBanner('—', 'neutral');
-      setPhase('player');
-      render();
-    } catch (err) {
-      console.error('Approach skirmish failed to start.', err);
-      reopenApproachFromSnapshot(snapshot, 'The skirmish sigil sputters and fails to fully ignite.');
-    }
-  }, 0);
-  return true;
-}
-
-function maybeTriggerApproachEncounterTile() {
-  const tile = getApproachEncounterTileAt(APPROACH.tileCol, APPROACH.tileRow);
-  if (!tile || isApproachEncounterTileSpent(tile.id)) return false;
-  if (!APPROACH.encounterTileStates || typeof APPROACH.encounterTileStates !== 'object') APPROACH.encounterTileStates = Object.create(null);
-  APPROACH.encounterTileStates[tile.id] = { spent: true, triggered: false };
-  if (Math.random() <= clamp(toSafeNum(tile.chance, APPROACH_SKIRMISH_CHANCE), 0.05, 1)) {
-    APPROACH.encounterTileStates[tile.id].triggered = true;
-    APPROACH.statusMessage = `${tile.label || 'A skirmish switch'} flares and pulls a foe into the path!`;
-    startApproachSkirmishEncounter(tile);
-    return true;
-  }
-  APPROACH.statusMessage = `${tile.label || 'The skirmish switches'} crackle, but nothing answers this time.`;
-  return false;
 }
 
 function getApproachActionRow() {
@@ -7338,42 +6707,11 @@ function getApproachBonusSummary(bonus) {
   return parts.join(' • ');
 }
 
-function getApproachCollectedBonusSummary() {
-  if (!Array.isArray(APPROACH.bonuses) || !APPROACH.bonuses.length) return '';
-  const pieces = APPROACH.bonuses.map((bonus) => `${bonus.label}${getApproachBonusSummary(bonus) ? ` (${getApproachBonusSummary(bonus)})` : ''}`);
-  return pieces.join(' | ');
-}
-
-function getApproachPuzzleArrowLabel(dir) {
-  return ({ up: '↑', down: '↓', left: '←', right: '→' })[String(dir || '').toLowerCase()] || '•';
-}
-
-function hasApproachPuzzle(interactable) {
-  return !!(interactable?.mazePuzzle && Array.isArray(interactable.mazePuzzle.steps) && interactable.mazePuzzle.steps.length);
-}
-
-function openApproachPuzzle() { return false; }
-
-function closeApproachPuzzle() {
-  APPROACH.puzzle = {
-    active: false,
-    interactableId: null,
-    prompt: '',
-    hint: '',
-    sequence: [],
-    entered: [],
-    message: '',
-  };
-}
-
-function resetApproachPuzzleInput() {
-  return false;
-}
-
-function finalizeApproachInteractable(src) {
-  if (!src) return false;
-  APPROACH.interactedIds[src.id] = true;
-  const bonus = cloneApproachBonus({
+function triggerApproachInteractable() {
+  if (!APPROACH.active || !APPROACH.scene?.interactable || APPROACH.interacted || !APPROACH.nearInteractable) return false;
+  const src = APPROACH.scene.interactable;
+  APPROACH.interacted = true;
+  APPROACH.bonus = cloneApproachBonus({
     label: src.label,
     foundText: src.foundText,
     heal: src.effect?.heal,
@@ -7381,117 +6719,8 @@ function finalizeApproachInteractable(src) {
     barrier: src.effect?.barrier,
     damageBoost: src.effect?.damageBoost,
   });
-  APPROACH.bonuses.push(bonus);
-  APPROACH.statusMessage = src.foundText || `${src.label} helps before the fight.`;
-  return true;
-}
-
-function submitApproachPuzzleInput() {
-  return false;
-}
-
-function updateApproachPuzzleUi() {
-  return;
-}
-
-function getNearbyApproachPuzzleNode(scene = APPROACH.scene) {
-  if (!scene || !Array.isArray(scene.puzzleNodes) || !scene.puzzleNodes.length) return null;
-  let best = null;
-  let bestDist = Infinity;
-  for (const node of scene.puzzleNodes) {
-    if (!node || isApproachMazePuzzleSolved(node.interactableId)) continue;
-    const tile = getApproachPuzzleNodeTile(node.id, scene);
-    const dist = Math.hypot(APPROACH.tileCol - tile.col, APPROACH.tileRow - tile.row);
-    const grid = getApproachGrid(scene);
-    const radius = Math.max(1, toSafeNum(node.radiusPct, 7) / Math.min(grid?.cellW || 1, grid?.cellH || 1));
-    if (dist <= radius && dist < bestDist) {
-      best = node;
-      bestDist = dist;
-    }
-  }
-  return best;
-}
-
-function triggerApproachPuzzleNode(nodeId = APPROACH.nearPuzzleNodeId) {
-  if (!APPROACH.active || !APPROACH.scene) return false;
-  const node = getApproachPuzzleNodeById(nodeId, APPROACH.scene);
-  if (!node || isApproachMazePuzzleSolved(node.interactableId)) return false;
-  const tile = getApproachPuzzleNodeTile(node.id, APPROACH.scene);
-  const grid = getApproachGrid(APPROACH.scene);
-  const dist = Math.hypot(APPROACH.tileCol - tile.col, APPROACH.tileRow - tile.row);
-  const radius = Math.max(1, toSafeNum(node.radiusPct, 7) / Math.min(grid?.cellW || 1, grid?.cellH || 1));
-  if (dist > radius) return false;
-  const interactable = getApproachInteractableById(node.interactableId, APPROACH.scene);
-  if (!interactable || !hasApproachPuzzle(interactable)) return false;
-  const puzzle = interactable.mazePuzzle;
-  const state = getApproachMazePuzzleState(interactable.id);
-  if (state.activated[node.id]) {
-    APPROACH.statusMessage = `${node.label} is already glowing.`;
-    updateApproachStatus();
-    return true;
-  }
-  state.activated[node.id] = true;
-  const activatedCount = Object.keys(state.activated).length;
-  state.progress = activatedCount;
-  if (activatedCount >= puzzle.steps.length) {
-    state.solved = true;
-    APPROACH.statusMessage = puzzle.solvedText || `A hidden wall opens near ${interactable.label}.`;
-  } else {
-    APPROACH.statusMessage = `${node.label} answers. ${puzzle.steps.length - activatedCount} sigil${(puzzle.steps.length - activatedCount) === 1 ? '' : 's'} remain.`;
-  }
   updateApproachStatus();
   return true;
-}
-
-function isApproachInteractableRevealed(interactable) {
-  if (!interactable) return false;
-  if (APPROACH.interactedIds?.[interactable.id]) return true;
-  return !hasApproachPuzzle(interactable) || isApproachMazePuzzleSolved(interactable.id);
-}
-
-function getNearbyApproachInteractable(scene = APPROACH.scene) {
-
-  if (!scene || !Array.isArray(scene.interactables) || !scene.interactables.length) return null;
-  let best = null;
-  let bestDist = Infinity;
-  for (const interactable of scene.interactables) {
-    if (!interactable || APPROACH.interactedIds?.[interactable.id] || !isApproachInteractableRevealed(interactable)) continue;
-    const dist = getApproachTileDistanceToAnchor('interactable', scene, interactable.id);
-    const radius = getApproachAnchorRadiusTiles('interactable', scene, interactable.id);
-    if (dist <= radius && dist < bestDist) {
-      best = interactable;
-      bestDist = dist;
-    }
-  }
-  return best;
-}
-
-function triggerApproachInteractable(interactableId = APPROACH.nearInteractableId) {
-  if (!APPROACH.active || !APPROACH.scene) return false;
-  const src = getApproachInteractableById(interactableId, APPROACH.scene);
-  if (!src || APPROACH.interactedIds?.[src.id]) return false;
-  if (!isApproachInteractableRevealed(src)) {
-    APPROACH.statusMessage = src.mazePuzzle?.lockedText || `A hidden find still lies sealed away.`;
-    updateApproachStatus();
-    return false;
-  }
-  const dist = getApproachTileDistanceToAnchor('interactable', APPROACH.scene, src.id);
-  const radius = getApproachAnchorRadiusTiles('interactable', APPROACH.scene, src.id);
-  if (dist > radius) return false;
-  if (hasApproachPuzzle(src) && !isApproachMazePuzzleSolved(src.id)) {
-    APPROACH.statusMessage = src.mazePuzzle?.lockedText || `A sealed wall still blocks ${src.label}.`;
-    updateApproachStatus();
-    return false;
-  }
-  finalizeApproachInteractable(src);
-  updateApproachStatus();
-  return true;
-}
-
-function triggerApproachPrimaryAction() {
-  if (APPROACH.nearPuzzleNodeId) return triggerApproachPuzzleNode(APPROACH.nearPuzzleNodeId);
-  if (APPROACH.nearInteractableId) return triggerApproachInteractable(APPROACH.nearInteractableId);
-  return false;
 }
 
 function applyApproachBonusToBattle(bonus, loc) {
@@ -7546,16 +6775,15 @@ function updateApproachStatus() {
   const statusEl = els.locationChoices.querySelector('#approachStatus');
   const battleBtn = els.locationChoices.querySelector('button[data-approach-action="battle"]');
   const interactBtn = els.locationChoices.querySelector('button[data-approach-action="interact"]');
-  const interactEls = Array.from(els.locationChoices.querySelectorAll('.rpgApproachInteractable'));
-  const nodeEls = Array.from(els.locationChoices.querySelectorAll('.rpgApproachPuzzleNode'));
-  const wallEls = Array.from(els.locationChoices.querySelectorAll('.rpgApproachSealWall'));
-  const encounterEls = Array.from(els.locationChoices.querySelectorAll('.rpgApproachEncounterTile'));
+  const interactEl = els.locationChoices.querySelector('#approachInteractable');
   const loc = getLocationById(APPROACH.locationId || '');
   const gate = APPROACH.scene.gate;
-  const interactables = Array.isArray(APPROACH.scene.interactables) ? APPROACH.scene.interactables : [];
+  const interactable = APPROACH.scene.interactable;
   const isLocked = !!(APPROACH.locationId === FINAL_LOCATION_ID && !isCampaignFinalUnlocked());
   const gateTile = getApproachAnchorTile('gate');
   const gatePos = approachTileToPct(gateTile.col, gateTile.row);
+  const interactTile = interactable ? getApproachAnchorTile('interactable') : null;
+  const interactPos = interactTile ? approachTileToPct(interactTile.col, interactTile.row) : null;
 
   if (playerEl instanceof HTMLElement) {
     playerEl.style.left = `${APPROACH.xPct}%`;
@@ -7573,12 +6801,7 @@ function updateApproachStatus() {
   updateApproachCamera();
 
   APPROACH.nearGate = getApproachTileDistanceToAnchor('gate') <= getApproachAnchorRadiusTiles('gate');
-  const nearbyPuzzleNode = getNearbyApproachPuzzleNode(APPROACH.scene);
-  const nearbyInteractable = getNearbyApproachInteractable(APPROACH.scene);
-  const nearbyEncounterTile = getNearbyApproachEncounterTile();
-  APPROACH.nearPuzzleNodeId = nearbyPuzzleNode?.id || null;
-  APPROACH.nearInteractableId = nearbyInteractable?.id || null;
-  APPROACH.nearEncounterTileId = nearbyEncounterTile?.id || null;
+  APPROACH.nearInteractable = !!interactable && (getApproachTileDistanceToAnchor('interactable') <= getApproachAnchorRadiusTiles('interactable'));
 
   if (gateEl instanceof HTMLElement) {
     gateEl.style.left = `${gatePos.xPct}%`;
@@ -7587,92 +6810,32 @@ function updateApproachStatus() {
     gateEl.classList.toggle('isLocked', isLocked);
     gateEl.setAttribute('data-label', gate.label);
   }
-
-  interactEls.forEach((el) => {
-    const id = el.getAttribute('data-interactable-id') || '';
-    const interactable = getApproachInteractableById(id, APPROACH.scene);
-    if (!interactable) return;
-    const tile = getApproachAnchorTile('interactable', APPROACH.scene, interactable.id);
-    const pos = approachTileToPct(tile.col, tile.row, APPROACH.scene);
-    const revealed = isApproachInteractableRevealed(interactable);
-    el.style.left = `${pos.xPct}%`;
-    el.style.top = `${pos.yPct}%`;
-    el.hidden = !revealed;
-    el.setAttribute('aria-hidden', revealed ? 'false' : 'true');
-    el.classList.toggle('isHiddenUntilSolved', !revealed);
-    el.classList.toggle('isNearby', revealed && APPROACH.nearInteractableId === interactable.id);
-    el.classList.toggle('isUsed', !!APPROACH.interactedIds?.[interactable.id]);
-    el.classList.toggle('hasPuzzle', hasApproachPuzzle(interactable) && !APPROACH.interactedIds?.[interactable.id] && !isApproachMazePuzzleSolved(interactable.id));
-    el.classList.toggle('isLockedSeal', hasApproachPuzzle(interactable) && !isApproachMazePuzzleSolved(interactable.id));
-  });
-
-  nodeEls.forEach((el) => {
-    const id = el.getAttribute('data-puzzle-node-id') || '';
-    const node = getApproachPuzzleNodeById(id, APPROACH.scene);
-    if (!node) return;
-    const pos = approachTileToPct(node.col, node.row, APPROACH.scene);
-    el.style.left = `${pos.xPct}%`;
-    el.style.top = `${pos.yPct}%`;
-    const state = getApproachMazePuzzleState(node.interactableId);
-    el.classList.toggle('isNearby', APPROACH.nearPuzzleNodeId === node.id);
-    el.classList.toggle('isSolved', !!state.solved);
-    el.classList.toggle('isActive', !!state.activated?.[node.id]);
-  });
-
-  wallEls.forEach((el) => {
-    const id = el.getAttribute('data-seal-for') || '';
-    el.classList.toggle('isOpen', isApproachMazePuzzleSolved(id));
-  });
-
-  encounterEls.forEach((el) => {
-    const id = el.getAttribute('data-encounter-tile-id') || '';
-    const tile = getApproachEncounterTileById(id);
-    if (!tile) return;
-    const pos = approachTileToPct(tile.col, tile.row, APPROACH.scene);
-    const spent = isApproachEncounterTileSpent(id);
-    el.style.left = `${pos.xPct}%`;
-    el.style.top = `${pos.yPct}%`;
-    el.hidden = spent;
-    el.setAttribute('aria-hidden', spent ? 'true' : 'false');
-    el.classList.toggle('isSpent', spent);
-    el.classList.toggle('isNearby', !spent && APPROACH.nearEncounterTileId === id);
-  });
-
+  if (interactEl instanceof HTMLElement) {
+    if (interactPos) {
+      interactEl.style.left = `${interactPos.xPct}%`;
+      interactEl.style.top = `${interactPos.yPct}%`;
+    }
+    interactEl.classList.toggle('isNearby', APPROACH.nearInteractable);
+    interactEl.classList.toggle('isUsed', APPROACH.interacted);
+  }
   if (battleBtn instanceof HTMLButtonElement) {
     battleBtn.disabled = isLocked || !APPROACH.nearGate;
     battleBtn.textContent = isLocked ? 'Sealed' : (APPROACH.locationId === FINAL_LOCATION_ID ? 'Challenge Final Boss' : `Begin ${loc?.name || 'Encounter'}`);
   }
   if (interactBtn instanceof HTMLButtonElement) {
-    const show = !!(interactables.length || (APPROACH.scene?.puzzleNodes?.length));
-    interactBtn.hidden = !show;
-    if (nearbyPuzzleNode) {
-      interactBtn.disabled = false;
-      interactBtn.textContent = 'Activate Sigil';
-    } else if (nearbyInteractable) {
-      interactBtn.disabled = false;
-      interactBtn.textContent = nearbyInteractable.actionLabel || 'Interact';
-    } else {
-      interactBtn.disabled = true;
-      interactBtn.textContent = 'Interact';
-    }
+    const label = interactable?.actionLabel || 'Inspect';
+    interactBtn.disabled = !interactable || APPROACH.interacted || !APPROACH.nearInteractable;
+    interactBtn.textContent = APPROACH.interacted ? 'Used' : label;
   }
   if (statusEl instanceof HTMLElement) {
-    const collectedSummary = getApproachCollectedBonusSummary();
-    const usedCount = Object.keys(APPROACH.interactedIds || {}).length;
-    const totalCount = interactables.length;
-    const summarySuffix = collectedSummary ? ` Collected: ${collectedSummary}.` : '';
-    const extra = APPROACH.statusMessage ? ` ${APPROACH.statusMessage}` : '';
-    statusEl.textContent = (isLocked
-      ? `The Palace gate is sealed. Reclaim all four artifacts to break the seal.${summarySuffix}${extra}`
+    const bonusText = APPROACH.interacted && APPROACH.bonus ? ` ${APPROACH.bonus.foundText}${getApproachBonusSummary(APPROACH.bonus) ? ` (${getApproachBonusSummary(APPROACH.bonus)}).` : ''}` : '';
+    statusEl.textContent = isLocked
+      ? 'The Palace gate is sealed. Reclaim all four artifacts to break the seal.'
       : (APPROACH.nearGate
-        ? `You reached the ${gate.label}. Press Enter or use the battle button to begin. ${usedCount}/${totalCount} interactables claimed.${summarySuffix}${extra}`
-        : nearbyPuzzleNode
-          ? `You are beside the ${nearbyPuzzleNode.label}. Press E or use Activate Sigil. ${usedCount}/${totalCount} interactables claimed.${summarySuffix}${extra}`
-          : nearbyInteractable
-            ? `You are close to the ${nearbyInteractable.label}. Press E or use ${nearbyInteractable.actionLabel}. ${usedCount}/${totalCount} interactables claimed.${summarySuffix}${extra}`
-            : nearbyEncounterTile
-              ? `You are in the ${nearbyEncounterTile.label || 'skirmish switch field'}. This tile may spark a one-wave ambush. ${usedCount}/${totalCount} interactables claimed.${summarySuffix}${extra}`
-              : `Explore the tile-map with WASD / arrow keys or click a route. Reach the ${gate.label} to start combat. ${usedCount}/${totalCount} interactables claimed.${summarySuffix}${extra}`));
+        ? `You reached the ${gate.label}. Press Enter or use the battle button to begin.${bonusText}`
+        : (interactable && !APPROACH.interacted && APPROACH.nearInteractable)
+          ? `You are close to the ${interactable.label}. Press E or use ${interactable.actionLabel} for a pre-battle edge.`
+          : `Explore the tile-map with WASD / arrow keys or click a route. Reach the ${gate.label} to start combat.${bonusText}`);
   }
 }
 
@@ -7733,7 +6896,7 @@ function getApproachAmbientHtml(theme) {
   return `<div class="rpgApproachAmbient rpgApproachAmbient--${safeTheme}" aria-hidden="true">${sprites.join('')}</div>`;
 }
 
-function renderLocationApproach(locationId, restoreSnapshot = null) {
+function renderLocationApproach(locationId) {
   if (!(els.locationChoices instanceof HTMLElement)) return;
   const loc = getLocationById(locationId);
   const scene = getApproachScene(loc.id);
@@ -7744,16 +6907,7 @@ function renderLocationApproach(locationId, restoreSnapshot = null) {
   APPROACH.grid = getApproachGrid(scene);
   APPROACH.gridCols = APPROACH.grid?.cols || APPROACH_GRID_DEFAULTS.cols;
   APPROACH.gridRows = APPROACH.grid?.rows || APPROACH_GRID_DEFAULTS.rows;
-  const startTile = restoreSnapshot ? { col: toSafeInt(restoreSnapshot.tileCol, getApproachAnchorTile('spawn', scene).col), row: toSafeInt(restoreSnapshot.tileRow, getApproachAnchorTile('spawn', scene).row) } : getApproachAnchorTile('spawn', scene);
-  setApproachTilePosition(startTile.col, startTile.row, scene);
-  APPROACH.interactedIds = restoreSnapshot?.interactedIds ? { ...restoreSnapshot.interactedIds } : Object.create(null);
-  APPROACH.bonuses = Array.isArray(restoreSnapshot?.bonuses) ? restoreSnapshot.bonuses.map((bonus) => cloneApproachBonus(bonus)).filter(Boolean) : [];
-  APPROACH.puzzleStates = restoreSnapshot?.puzzleStates ? JSON.parse(JSON.stringify(restoreSnapshot.puzzleStates)) : Object.create(null);
-  APPROACH.encounterTiles = Array.isArray(restoreSnapshot?.encounterTiles) && restoreSnapshot.encounterTiles.length
-    ? restoreSnapshot.encounterTiles.map((tile) => ({ ...tile }))
-    : buildApproachEncounterTiles(scene, loc.id);
-  APPROACH.encounterTileStates = restoreSnapshot?.encounterTileStates ? JSON.parse(JSON.stringify(restoreSnapshot.encounterTileStates)) : Object.create(null);
-  APPROACH.statusMessage = String(restoreSnapshot?.statusMessage || '');
+  setApproachTilePosition(getApproachAnchorTile('spawn', scene).col, getApproachAnchorTile('spawn', scene).row, scene);
 
   const titleEl = document.getElementById('locationTitle');
   if (titleEl instanceof HTMLElement) titleEl.textContent = `${loc.name} Approach`;
@@ -7769,31 +6923,16 @@ function renderLocationApproach(locationId, restoreSnapshot = null) {
     <div class="rpgApproachProp rpgApproachProp--${escapeHtml(prop.cls)}${prop.solid ? ' isSolid' : ''}" style="left:${prop.xPct}%; top:${prop.yPct}%; width:${prop.wPct}%; height:${prop.hPct}%;"></div>
   `).join('');
   const tileGridHtml = getApproachTileGridHtml(scene);
+  const interactTile = scene.interactable ? getApproachAnchorTile('interactable', scene) : null;
+  const interactPos = interactTile ? approachTileToPct(interactTile.col, interactTile.row, scene) : null;
   const gateTile = getApproachAnchorTile('gate', scene);
   const gatePos = approachTileToPct(gateTile.col, gateTile.row, scene);
-  const interactHtml = (Array.isArray(scene.interactables) ? scene.interactables : []).map((interactable) => {
-    const tile = getApproachAnchorTile('interactable', scene, interactable.id);
-    const pos = approachTileToPct(tile.col, tile.row, scene);
-    const revealed = isApproachInteractableRevealed(interactable);
-    return `
-    <button type="button" class="rpgApproachInteractable rpgApproachInteractable--${escapeHtml(interactable.cls)}${hasApproachPuzzle(interactable) && !APPROACH.interactedIds?.[interactable.id] && !isApproachMazePuzzleSolved(interactable.id) ? ' hasPuzzle isLockedSeal isHiddenUntilSolved' : ''}" data-interactable-id="${escapeHtml(interactable.id)}" style="left:${pos.xPct}%; top:${pos.yPct}%; width:${interactable.wPct}%; height:${interactable.hPct}%;" aria-label="${escapeHtml(interactable.label)}" ${revealed ? '' : 'hidden aria-hidden="true"'}>
+  const interactHtml = scene.interactable && interactPos ? `
+    <button type="button" class="rpgApproachInteractable rpgApproachInteractable--${escapeHtml(scene.interactable.cls)}" id="approachInteractable" style="left:${interactPos.xPct}%; top:${interactPos.yPct}%; width:${scene.interactable.wPct}%; height:${scene.interactable.hPct}%;" aria-label="${escapeHtml(scene.interactable.label)}">
       <span class="rpgApproachInteractableCore" aria-hidden="true"></span>
-      <span class="rpgApproachInteractableLabel">${escapeHtml(interactable.label)}</span>
-    </button>`;
-  }).join('');
-  const puzzleNodeHtml = (Array.isArray(scene.puzzleNodes) ? scene.puzzleNodes : []).map((node) => {
-    const pos = approachTileToPct(node.col, node.row, scene);
-    return `<button type="button" class="rpgApproachPuzzleNode" data-puzzle-node-id="${escapeHtml(node.id)}" style="left:${pos.xPct}%; top:${pos.yPct}%;" aria-label="${escapeHtml(node.label)}"><span class="rpgApproachPuzzleNodeCore" aria-hidden="true"></span><span class="rpgApproachPuzzleNodeLabel">${escapeHtml(node.label)}</span></button>`;
-  }).join('');
-  const puzzleWallHtml = (Array.isArray(scene.puzzleWalls) ? scene.puzzleWalls : []).map((wall) => {
-    const rect = approachTileRectToPct({ col: wall.col, row: wall.row, colSpan: 1, rowSpan: 1 }, scene.grid.cols, scene.grid.rows);
-    return `<div class="rpgApproachSealWall" data-seal-for="${escapeHtml(wall.interactableId)}" style="left:${rect.xPct}%; top:${rect.yPct}%; width:${rect.wPct}%; height:${rect.hPct}%;" aria-hidden="true"></div>`;
-  }).join('');
-  const encounterTileHtml = (Array.isArray(APPROACH.encounterTiles) ? APPROACH.encounterTiles : []).map((tile) => {
-    const pos = approachTileToPct(tile.col, tile.row, scene);
-    const spent = isApproachEncounterTileSpent(tile.id);
-    return `<button type="button" class="rpgApproachEncounterTile${spent ? ' isSpent' : ''}" data-encounter-tile-id="${escapeHtml(tile.id)}" style="left:${pos.xPct}%; top:${pos.yPct}%;" aria-label="${escapeHtml(tile.label || 'Skirmish Switch')}" ${spent ? 'disabled aria-hidden="true"' : ''}><span class="rpgApproachEncounterTileCore" aria-hidden="true"></span></button>`;
-  }).join('');
+      <span class="rpgApproachInteractableLabel">${escapeHtml(scene.interactable.label)}</span>
+    </button>
+  ` : '';
   const isLocked = !!(loc.id === FINAL_LOCATION_ID && !isCampaignFinalUnlocked());
   els.locationChoices.innerHTML = `
     <div class="rpgApproachShell rpgApproachShell--${escapeHtml(scene.theme)}">
@@ -7805,7 +6944,7 @@ function renderLocationApproach(locationId, restoreSnapshot = null) {
         </div>
         <div class="rpgApproachActions">
           <button type="button" class="btn ghost" data-approach-action="back">Return to Map</button>
-          <button type="button" class="btn ghost" data-approach-action="interact" ${(Array.isArray(scene.interactables) && scene.interactables.length) ? 'disabled' : 'hidden disabled'}>Interact</button>
+          <button type="button" class="btn ghost" data-approach-action="interact" ${scene.interactable ? 'disabled' : 'hidden disabled'}>${escapeHtml(scene.interactable?.actionLabel || 'Inspect')}</button>
           <button type="button" class="btn primary magentaGlow" data-approach-action="battle" ${isLocked ? 'disabled' : ''}>${isLocked ? 'Sealed' : 'Begin Encounter'}</button>
         </div>
       </div>
@@ -7815,9 +6954,6 @@ function renderLocationApproach(locationId, restoreSnapshot = null) {
           ${tileGridHtml}
           ${getApproachAmbientHtml(scene.theme)}
           ${propsHtml}
-          ${puzzleWallHtml}
-          ${puzzleNodeHtml}
-          ${encounterTileHtml}
           ${interactHtml}
           <div class="rpgApproachGate${isLocked ? ' isLocked' : ''}" id="approachGate" style="left:${gatePos.xPct}%; top:${gatePos.yPct}%">
             <span class="rpgApproachGateCore" aria-hidden="true"></span>
@@ -7840,34 +6976,12 @@ function renderLocationApproach(locationId, restoreSnapshot = null) {
     viewport.addEventListener('pointerdown', (ev) => {
       const target = ev.target;
       if (target instanceof HTMLElement && target.closest('button[data-approach-action]')) return;
-      const puzzleHit = (target instanceof HTMLElement) ? target.closest('.rpgApproachPuzzleNode') : null;
-      if (puzzleHit instanceof HTMLElement) {
-        const nodeId = puzzleHit.getAttribute('data-puzzle-node-id') || '';
-        if (APPROACH.nearPuzzleNodeId === nodeId) {
-          triggerApproachPuzzleNode(nodeId);
+      const interactHit = (target instanceof HTMLElement) ? target.closest('#approachInteractable') : null;
+      if (interactHit instanceof HTMLElement && scene.interactable) {
+        if (APPROACH.nearInteractable) {
+          triggerApproachInteractable();
         } else {
-          queueApproachPathTo(getApproachPuzzleNodeTile(nodeId, scene), scene);
-          updateApproachStatus();
-        }
-        return;
-      }
-      const interactHit = (target instanceof HTMLElement) ? target.closest('.rpgApproachInteractable') : null;
-      if (interactHit instanceof HTMLElement) {
-        const interactableId = interactHit.getAttribute('data-interactable-id') || '';
-        if (APPROACH.nearInteractableId === interactableId) {
-          triggerApproachInteractable(interactableId);
-        } else {
-          queueApproachPathTo(getApproachAnchorTile('interactable', scene, interactableId), scene);
-          updateApproachStatus();
-        }
-        return;
-      }
-      const encounterHit = (target instanceof HTMLElement) ? target.closest('.rpgApproachEncounterTile') : null;
-      if (encounterHit instanceof HTMLElement) {
-        const tileId = encounterHit.getAttribute('data-encounter-tile-id') || '';
-        const tile = getApproachEncounterTileById(tileId);
-        if (tile && !isApproachEncounterTileSpent(tile.id)) {
-          queueApproachPathTo({ col: tile.col, row: tile.row }, scene);
+          queueApproachPathTo(getApproachAnchorTile('interactable', scene), scene);
           updateApproachStatus();
         }
         return;
@@ -7891,13 +7005,13 @@ function renderLocationApproach(locationId, restoreSnapshot = null) {
   const interactBtn = els.locationChoices.querySelector('button[data-approach-action="interact"]');
   if (interactBtn instanceof HTMLButtonElement) {
     interactBtn.addEventListener('click', () => {
-      triggerApproachPrimaryAction();
+      if (!APPROACH.nearInteractable) return;
+      triggerApproachInteractable();
     });
   }
   const battleBtn = els.locationChoices.querySelector('button[data-approach-action="battle"]');
   if (battleBtn instanceof HTMLButtonElement) {
     battleBtn.addEventListener('click', () => {
-      if (APPROACH.puzzle?.active) return;
       if (!APPROACH.nearGate) return;
       startBattleWithLocation(loc.id);
     });
@@ -7949,23 +7063,14 @@ function ensureLocationApproachAnimation() {
       attemptApproachStep(nextDir, APPROACH.scene);
     }
 
-    if (!APPROACH.moving && !APPROACH.pathTiles.length) {
-      const heldDir = getApproachHeldDir();
-      if (heldDir) attemptApproachStep(heldDir, APPROACH.scene);
-    }
-
-    if (!APPROACH.moving && !APPROACH.pathTiles.length && !APPROACH.queuedDir && !getApproachHeldDir()) {
+    if (!APPROACH.moving && !APPROACH.pathTiles.length && !APPROACH.queuedDir) {
       APPROACH.targetX = null;
       APPROACH.targetY = null;
     }
 
-    if (!APPROACH.moving && !APPROACH.pathTiles.length) {
-      if (maybeTriggerApproachEncounterTile()) return;
-    }
-
     updateApproachStatus();
 
-    const stillMoving = !!(APPROACH.moving || APPROACH.pathTiles.length || APPROACH.queuedDir || getApproachHeldDir());
+    const stillMoving = !!(APPROACH.moving || APPROACH.pathTiles.length || APPROACH.queuedDir);
     if (stillMoving) {
       APPROACH.rafId = window.requestAnimationFrame(tick);
     } else {
@@ -8165,7 +7270,7 @@ function awardCampaignBossClear(locationId) {
   }
 
 
-  function makeInitialState(enemySet = null, locationId = activeLocationId, options = null) {
+  function makeInitialState(enemySet = null, locationId = activeLocationId) {
   const loc = locationId ? getLocationById(locationId) : null;
   const pt = getActiveHero();
   const player = makePlayerFromHero(pt);
@@ -8176,20 +7281,14 @@ function awardCampaignBossClear(locationId) {
     set = buildEnemySetForBattle(player.level);
   }
 
-  const preserveEnemySetLength = !!(options && options.preserveEnemySetLength);
-
-  // Normalize length (Wave 3 is usually a boss) unless a one-wave skirmish explicitly opts out.
-  if (!preserveEnemySetLength) {
-    if (set.length < 3) {
-      const w1 = set[0] || ENEMIES[0];
-      const w2 = set[1] || w1;
-      set = [w1, w2, ENEMIES[BOSS_ENEMY_INDEX]];
-    } else {
-      // Preserve an explicit third-wave boss when a location provides one.
-      set = [set[0], set[1] || set[0], set[2] || ENEMIES[BOSS_ENEMY_INDEX]];
-    }
+  // Normalize length (Wave 3 must be a boss).
+  if (set.length < 3) {
+    const w1 = set[0] || ENEMIES[0];
+    const w2 = set[1] || w1;
+    set = [w1, w2, ENEMIES[BOSS_ENEMY_INDEX]];
   } else {
-    set = set.slice();
+    // Preserve an explicit third-wave boss when a location provides one.
+    set = [set[0], set[1] || set[0], set[2] || ENEMIES[BOSS_ENEMY_INDEX]];
   }
 
   // Keep global in sync so wave spawns use the same lineup.
@@ -8205,8 +7304,6 @@ function awardCampaignBossClear(locationId) {
     player,
     enemy: makeEnemy(0, set, player.level),
     over: false,
-    battleMode: String(options?.battleMode || 'campaign'),
-    returnToApproach: options?.returnToApproach || null,
     log: [
       `Location: ${loc ? loc.name : "—"}.`,
       `Wave 1: ${set[0].name} steps into view.`,
@@ -9344,18 +8441,14 @@ function gainItem(itemId, count = 1) {
 
     // Lock controls and show the victory/loot screen until the player continues.
     setPhase("loot");
-    const title = state.battleMode === 'approach-skirmish'
-      ? 'Skirmish Cleared!'
-      : (isFinal
-          ? (state.locationId === FINAL_LOCATION_ID ? "Campaign Complete!" : (artifactAward ? `${artifactAward.artifactName} reclaimed!` : "Victory!"))
-          : `Wave ${state.wave + 1} cleared!`);
-    const subtitle = state.battleMode === 'approach-skirmish'
-      ? 'The surprise encounter breaks and the side path falls quiet again.'
-      : (state.locationId === FINAL_LOCATION_ID
-          ? "The Palace falls quiet as the final guardian breaks."
-          : (artifactAward
-              ? `${artifactAward.bossName} falls, and the artifact is yours.`
-              : "You collect your spoils."));
+    const title = isFinal
+      ? (state.locationId === FINAL_LOCATION_ID ? "Campaign Complete!" : (artifactAward ? `${artifactAward.artifactName} reclaimed!` : "Victory!"))
+      : `Wave ${state.wave + 1} cleared!`;
+    const subtitle = state.locationId === FINAL_LOCATION_ID
+      ? "The Palace falls quiet as the final guardian breaks."
+      : (artifactAward
+          ? `${artifactAward.bossName} falls, and the artifact is yours.`
+          : "You collect your spoils.");
     const summary = [];
     if (xpRes && xpRes.leveled && xpRes.levelsGained > 0) {
       summary.push({ kind: "lvl", text: `🌟 Level ${xpRes.levelBefore} → ${xpRes.levelAfter}` });
@@ -10979,23 +10072,15 @@ function playerFireAttack() {
       }
       if (k === 'e' || k === 'E') {
         e.preventDefault();
-        triggerApproachPrimaryAction();
+        triggerApproachInteractable();
         return;
       }
       const dir = map[k];
       if (!dir) return;
       e.preventDefault();
-      const wasHeld = !!APPROACH.keys[dir];
-      APPROACH.keys[dir] = true;
-      APPROACH.preferredDir = dir;
       APPROACH.queuedDir = dir;
       APPROACH.pathTiles = [];
-      // Let the animation loop handle held-key repetition. Browser key-repeat
-      // events can arrive while a tile step is still animating, which would
-      // otherwise keep restarting the same move and make long holds stall out.
-      if (!wasHeld && !APPROACH.moving && !APPROACH.pathTiles.length) {
-        attemptApproachStep(dir);
-      }
+      attemptApproachStep(dir);
       ensureLocationApproachAnimation();
       return;
     }
@@ -11047,9 +10132,7 @@ function playerFireAttack() {
     const dir = map[e.key];
     if (!dir) return;
     if (isApproachOpen()) {
-      APPROACH.keys[dir] = false;
       if (APPROACH.queuedDir === dir) APPROACH.queuedDir = null;
-      if (APPROACH.preferredDir === dir) APPROACH.preferredDir = getApproachHeldDir();
       return;
     }
     OVERWORLD.keys[dir] = false;

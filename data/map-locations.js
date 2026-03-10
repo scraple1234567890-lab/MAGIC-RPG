@@ -193,6 +193,14 @@ window.MAP_LOCATIONS_DATA = {
       "topPct": 48.2146
     },
     {
+      "id": "palace",
+      "title": "Palace",
+      "blurb": "The royal heart of the city, sealed until the four artifacts return.",
+      "href": "locations/palace.html",
+      "leftPct": 43.8,
+      "topPct": 43.9
+    },
+    {
       "id": "market-central",
       "title": "Market Central",
       "blurb": "The city\u2019s trading heart. If it\u2019s for sale, it passes through here.",
@@ -269,8 +277,8 @@ window.MAP_LOCATIONS_DATA = {
       "title": "Shop",
       "blurb": "Trade your hard-won Coins for supplies.",
       "href": "#",
-      "leftPct": 88.0,
-      "topPct": 18.0
+      "leftPct": 58.2,
+      "topPct": 21.8
     }
   ]
 };
