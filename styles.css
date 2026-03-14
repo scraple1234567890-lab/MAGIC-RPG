@@ -4982,7 +4982,9 @@ html[data-theme="light"] .rpgTileAvatar{
   object-fit: contain;
   object-position: center bottom;
   image-rendering: auto;
-  transform: scale(var(--spriteScale, 1));
+  /* Clamp the JS-provided scale so stale cached scripts cannot inflate sprites on deploy. */
+  --spriteScaleSafe: clamp(0.82, var(--spriteScale, 1), 1.18);
+  transform: scale(var(--spriteScaleSafe));
   transform-origin: center bottom;
   will-change: transform;
 }
@@ -6679,8 +6681,8 @@ body.gamePage .rpgStageInner{
   height: 300px;
 }
 body.gamePage .rpgFoe{
-  width: 170px;
-  height: 210px;
+  width: 158px;
+  height: 196px;
   /* Lift sprites up a touch without letting them swallow the stage */
   bottom: 18px;
 }
@@ -6883,55 +6885,444 @@ html[data-theme="light"] .rpgOverworldHint{
   margin-left:auto;
 }
 
-.rpgCampaignCard{
+.rpgOverworldHud{
+  position:absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 12;
   display:grid;
+  gap: 10px;
+  pointer-events:none;
+}
+
+.rpgOverworldHudBar,
+.rpgOverworldHudLegend{
+  pointer-events:none;
+}
+
+.rpgOverworldHudBar{
+  display:grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
-  margin: 0 0 14px;
-  padding: 14px;
-  border-radius: 18px;
+  align-items:start;
+}
+
+.rpgOverworldHudSummary,
+.rpgOverworldHudControls{
+  backdrop-filter: blur(12px) saturate(1.05);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+}
+
+/* Keep the artifact icon chips truly transparent.
+   Applying backdrop-filter to these transparent wrappers can create visible
+   square blur boxes behind each icon on some browsers/GPUs. */
+.rpgCampaignCompactChip,
+.rpgCampaignCompactGate{
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.rpgOverworldHudSummary{
+  min-width: 0;
+  display:grid;
+  gap: 6px;
+  padding: 9px 12px 10px;
+  border-radius: 16px;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03)),
-    radial-gradient(260px 180px at 10% 10%, rgba(244,114,182,0.12), transparent 70%),
-    radial-gradient(280px 180px at 90% 20%, rgba(34,211,238,0.12), transparent 70%),
-    rgba(9, 14, 26, 0.52);
+    linear-gradient(180deg, rgba(7, 13, 30, 0.84), rgba(12, 18, 34, 0.78)),
+    radial-gradient(200px 110px at 12% 18%, rgba(59,130,246,0.20), transparent 72%),
+    radial-gradient(220px 130px at 86% 20%, rgba(168,85,247,0.14), transparent 72%);
   border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: 0 18px 42px rgba(0,0,0,0.22);
+  box-shadow: 0 14px 30px rgba(2,6,23,0.30);
+}
+
+html[data-theme="light"] .rpgOverworldHudSummary{
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.92), rgba(246,249,255,0.88)),
+    radial-gradient(200px 110px at 12% 18%, rgba(59,130,246,0.16), transparent 72%),
+    radial-gradient(220px 130px at 86% 20%, rgba(168,85,247,0.12), transparent 72%);
+  border-color: rgba(99,102,241,0.14);
+  box-shadow: 0 16px 34px rgba(15,23,42,0.12);
+}
+
+.rpgOverworldHudSummaryTop{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 12px;
+}
+
+.rpgOverworldHudSummaryTop--compact{
+  align-items:center;
+  gap: 10px;
+}
+
+.rpgOverworldHudTitleWrap{
+  min-width: 0;
+  display:grid;
+  gap: 4px;
+}
+
+.rpgOverworldHudTitleWrap--compact{
+  width: 100%;
+  gap: 3px;
+}
+
+.rpgOverworldHudKicker{
+  margin:0;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(191,219,254,0.84);
+}
+
+html[data-theme="light"] .rpgOverworldHudKicker{
+  color: rgba(67,56,202,0.72);
+}
+
+.rpgOverworldHudTitleRow{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rpgOverworldHudTitleRow--compact{
+  align-items:center;
+  justify-content:flex-start;
+  gap: 8px;
+  row-gap: 6px;
+}
+
+.rpgOverworldHudTitle{
+  margin:0;
+  font-size: 0.96rem;
+  line-height: 1.05;
+  color: rgba(248,250,252,0.98);
+}
+
+html[data-theme="light"] .rpgOverworldHudTitle{
+  color: #0f172a;
+}
+
+.rpgOverworldHudState,
+.rpgOverworldHudCount{
+  display:inline-flex;
+  align-items:center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(191,219,254,0.18);
+  background: rgba(2,6,23,0.42);
+  color: rgba(226,232,240,0.96);
+  font-size: 0.74rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.rpgOverworldHudCount{
+  align-self:center;
+  padding-inline: 9px;
+  font-weight: 900;
+}
+
+.rpgOverworldHudState.isUnlocked{
+  background: rgba(8,145,178,0.26);
+  border-color: rgba(125,211,252,0.26);
+}
+
+.rpgOverworldHudState.isComplete{
+  background: rgba(21,128,61,0.26);
+  border-color: rgba(134,239,172,0.28);
+}
+
+html[data-theme="light"] .rpgOverworldHudState,
+html[data-theme="light"] .rpgOverworldHudCount{
+  background: rgba(255,255,255,0.88);
+  border-color: rgba(99,102,241,0.12);
+  color: #1e293b;
+}
+
+html[data-theme="light"] .rpgOverworldHudState.isUnlocked{
+  background: rgba(236,254,255,0.98);
+  border-color: rgba(14,165,233,0.16);
+}
+
+html[data-theme="light"] .rpgOverworldHudState.isComplete{
+  background: rgba(240,253,244,0.98);
+  border-color: rgba(34,197,94,0.16);
+}
+
+.rpgOverworldHudProgress{
+  height: 7px;
+  overflow:hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.18);
+}
+
+.rpgOverworldHudProgress > span{
+  display:block;
+  height:100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(96,165,250,0.98), rgba(52,211,153,0.98));
+  box-shadow: 0 0 20px rgba(96,165,250,0.30);
+}
+
+html[data-theme="light"] .rpgOverworldHudProgress{
+  background: rgba(148,163,184,0.14);
+  border-color: rgba(99,102,241,0.10);
+}
+
+.rpgOverworldHudHelp{
+  display:none;
+}
+
+.rpgOverworldHudControls{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px;
+  border-radius: 18px;
+  background: rgba(7, 13, 30, 0.72);
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 18px 42px rgba(2,6,23,0.28);
+}
+
+.rpgOverworldHudControls > *{
+  pointer-events:auto;
+}
+
+html[data-theme="light"] .rpgOverworldHudControls{
+  background: rgba(255,255,255,0.86);
+  border-color: rgba(99,102,241,0.12);
+  box-shadow: 0 14px 30px rgba(15,23,42,0.12);
+}
+
+.rpgOverworldHudLegend{
+  display:flex;
+  flex-wrap:wrap;
+  gap: 10px;
+  align-items:flex-start;
+}
+
+.rpgCampaignCompactChip,
+.rpgCampaignCompactGate{
+  display:inline-flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  gap: 6px;
+  min-width: 72px;
+  max-width: 84px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  text-align:center;
+  isolation: isolate;
+}
+
+.rpgCampaignCompactChip.isRecovered,
+.rpgCampaignCompactGate.isUnlocked,
+.rpgCampaignCompactGate.isComplete{
+  background: transparent;
+  border-color: transparent;
+}
+
+html[data-theme="light"] .rpgCampaignCompactChip,
+html[data-theme="light"] .rpgCampaignCompactGate,
+html[data-theme="light"] .rpgCampaignCompactChip.isRecovered,
+html[data-theme="light"] .rpgCampaignCompactGate.isUnlocked,
+html[data-theme="light"] .rpgCampaignCompactGate.isComplete{
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.rpgCampaignCompactChipIcon{
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 999px;
+  display:grid;
+  place-items:center;
+  font-size: 1.02rem;
+  background: rgba(255,255,255,0.96);
+  color: #0f172a;
+  border: 1px solid rgba(255,255,255,0.20);
+  box-shadow: 0 10px 18px rgba(2,6,23,0.24);
+}
+
+.rpgCampaignCompactChip.isRecovered .rpgCampaignCompactChipIcon,
+.rpgCampaignCompactGate.isUnlocked .rpgCampaignCompactChipIcon{
+  background: rgba(240,253,244,0.98);
+  border-color: rgba(134,239,172,0.42);
+}
+
+.rpgCampaignCompactGate.isComplete .rpgCampaignCompactChipIcon{
+  background: rgba(220,252,231,1);
+  border-color: rgba(74,222,128,0.42);
+}
+
+html[data-theme="light"] .rpgCampaignCompactChipIcon{
+  background: rgba(255,255,255,0.98);
+  border-color: rgba(148,163,184,0.24);
+  box-shadow: 0 10px 18px rgba(15,23,42,0.12);
+}
+
+html[data-theme="light"] .rpgCampaignCompactChip.isRecovered .rpgCampaignCompactChipIcon,
+html[data-theme="light"] .rpgCampaignCompactGate.isUnlocked .rpgCampaignCompactChipIcon{
+  background: rgba(240,253,244,1);
+  border-color: rgba(34,197,94,0.18);
+}
+
+html[data-theme="light"] .rpgCampaignCompactGate.isComplete .rpgCampaignCompactChipIcon{
+  background: rgba(220,252,231,1);
+  border-color: rgba(22,163,74,0.20);
+}
+
+.rpgCampaignCompactChipText{
+  min-width: 0;
+  display:grid;
+  justify-items:center;
+  gap: 2px;
+  line-height: 1.05;
+}
+
+.rpgCampaignCompactChipText strong{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height: 20px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(7,13,30,0.76);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: rgba(248,250,252,0.98);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+  box-shadow: 0 8px 16px rgba(2,6,23,0.18);
+}
+
+.rpgCampaignCompactChipText span{
+  font-size: 0.56rem;
+  color: rgba(226,232,240,0.82);
+  max-width: 84px;
+}
+
+html[data-theme="light"] .rpgCampaignCompactChipText strong{
+  background: rgba(255,255,255,0.94);
+  border-color: rgba(99,102,241,0.10);
+  color: #0f172a;
+  box-shadow: 0 6px 14px rgba(15,23,42,0.08);
+}
+
+html[data-theme="light"] .rpgCampaignCompactChipText span{
+  color: rgba(51,65,85,0.76);
+}
+
+.rpgCampaignCard{
+  position: relative;
+  overflow: hidden;
+  display:grid;
+  gap: 14px;
+  margin: 0 0 16px;
+  padding: 16px 18px;
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, rgba(8, 15, 36, 0.96), rgba(15, 23, 42, 0.92)),
+    radial-gradient(240px 160px at 14% 16%, rgba(56, 189, 248, 0.16), transparent 72%),
+    radial-gradient(300px 180px at 88% 18%, rgba(139, 92, 246, 0.16), transparent 74%),
+    rgba(9, 14, 26, 0.88);
+  border: 1px solid rgba(148,163,184,0.22);
+  box-shadow: 0 22px 52px rgba(0,0,0,0.28);
+}
+
+.rpgCampaignCard::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: linear-gradient(180deg, rgba(255,255,255,0.45), transparent 92%);
+  opacity: 0.42;
+}
+
+.rpgCampaignCard > *{
+  position: relative;
+  z-index: 1;
 }
 
 html[data-theme="light"] .rpgCampaignCard{
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.75)),
-    radial-gradient(260px 180px at 10% 10%, rgba(244,114,182,0.12), transparent 70%),
-    radial-gradient(280px 180px at 90% 20%, rgba(34,211,238,0.12), transparent 70%),
-    rgba(255,255,255,0.82);
-  border-color: rgba(15,23,42,0.08);
+    linear-gradient(180deg, rgba(255,255,255,0.96), rgba(244,247,255,0.95)),
+    radial-gradient(240px 160px at 14% 16%, rgba(59,130,246,0.12), transparent 72%),
+    radial-gradient(300px 180px at 88% 18%, rgba(168,85,247,0.12), transparent 74%),
+    rgba(255,255,255,0.96);
+  border-color: rgba(99,102,241,0.14);
+  box-shadow: 0 18px 40px rgba(15,23,42,0.10);
 }
 
 .rpgCampaignHead{
   display:flex;
   justify-content:space-between;
-  gap:14px;
+  gap:16px;
   align-items:flex-start;
   flex-wrap:wrap;
 }
 
+.rpgCampaignIntro{
+  flex: 1 1 560px;
+  min-width: min(100%, 280px);
+}
+
+.rpgCampaignTitleRow{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 12px;
+  flex-wrap:wrap;
+}
+
 .rpgCampaignKicker{
-  margin:0 0 4px;
-  font-size: 0.74rem;
+  margin:0 0 6px;
+  font-size: 0.72rem;
   font-weight: 900;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: rgba(148,163,184,0.9);
+  color: rgba(191,219,254,0.86);
+}
+
+html[data-theme="light"] .rpgCampaignKicker{
+  color: rgba(67,56,202,0.72);
 }
 
 .rpgCampaignTitle{
   margin:0;
-  font-size: 1.02rem;
-  line-height: 1.25;
+  font-size: 1.14rem;
+  line-height: 1.18;
+  color: rgba(248,250,252,0.98);
+}
+
+html[data-theme="light"] .rpgCampaignTitle{
+  color: #0f172a;
 }
 
 .rpgCampaignBody{
-  margin:6px 0 0;
+  margin:8px 0 0;
+  max-width: 66ch;
   color: rgba(226,232,240,0.82);
   font-size: 0.92rem;
 }
@@ -6940,57 +7331,159 @@ html[data-theme="light"] .rpgCampaignBody{
   color: rgba(30,41,59,0.78);
 }
 
+.rpgCampaignProgress{
+  margin-top: 12px;
+  height: 10px;
+  border-radius: 999px;
+  overflow:hidden;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.18);
+}
+
+.rpgCampaignProgress > span{
+  display:block;
+  height:100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(96,165,250,0.96), rgba(52,211,153,0.96));
+  box-shadow: 0 0 22px rgba(96,165,250,0.28);
+}
+
+html[data-theme="light"] .rpgCampaignProgress{
+  background: rgba(148,163,184,0.14);
+  border-color: rgba(99,102,241,0.10);
+}
+
+.rpgCampaignMeterWrap{
+  display:grid;
+  gap: 6px;
+  align-items:start;
+  justify-items:end;
+}
+
+.rpgCampaignMeterLabel{
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(191,219,254,0.78);
+  font-weight: 900;
+}
+
+html[data-theme="light"] .rpgCampaignMeterLabel{
+  color: rgba(67,56,202,0.66);
+}
+
 .rpgCampaignMeter{
-  min-width: 82px;
-  padding: 10px 14px;
+  min-width: 96px;
+  padding: 11px 16px;
   border-radius: 999px;
   text-align:center;
   font-weight: 950;
-  background: rgba(15,23,42,0.46);
+  color: rgba(248,250,252,0.98);
+  background: rgba(2, 6, 23, 0.46);
   border: 1px solid rgba(255,255,255,0.12);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
 html[data-theme="light"] .rpgCampaignMeter{
-  background: rgba(255,255,255,0.92);
-  border-color: rgba(15,23,42,0.08);
+  color: #0f172a;
+  background: rgba(236, 242, 255, 0.95);
+  border-color: rgba(99,102,241,0.12);
+}
+
+.rpgCampaignStatePill{
+  display:inline-flex;
+  align-items:center;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(15,23,42,0.54);
+  border: 1px solid rgba(191,219,254,0.18);
+  color: rgba(226,232,240,0.94);
+  font-size: 0.8rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.rpgCampaignStatePill.isUnlocked{
+  background: rgba(8,145,178,0.28);
+  border-color: rgba(125,211,252,0.22);
+}
+
+.rpgCampaignStatePill.isComplete{
+  background: rgba(21,128,61,0.28);
+  border-color: rgba(134,239,172,0.24);
+}
+
+html[data-theme="light"] .rpgCampaignStatePill{
+  background: rgba(238,242,255,0.98);
+  border-color: rgba(99,102,241,0.12);
+  color: #1e293b;
+}
+
+html[data-theme="light"] .rpgCampaignStatePill.isUnlocked{
+  background: rgba(236,254,255,0.98);
+  border-color: rgba(14,165,233,0.16);
+}
+
+html[data-theme="light"] .rpgCampaignStatePill.isComplete{
+  background: rgba(240,253,244,0.98);
+  border-color: rgba(34,197,94,0.16);
 }
 
 .rpgCampaignArtifacts{
+  position:relative;
   display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 10px;
+}
+
+.rpgCampaignArtifacts::before{
+  content:"";
+  position:absolute;
+  left: 28px;
+  right: 28px;
+  top: 28px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(96,165,250,0.42), rgba(134,239,172,0.42));
+  opacity: 0.58;
+  pointer-events:none;
 }
 
 .rpgCampaignArtifact{
-  display:flex;
+  position:relative;
+  z-index: 1;
+  display:grid;
+  grid-template-columns: 46px minmax(0, 1fr);
   align-items:center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(15,23,42,0.34);
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(15,23,42,0.46);
   border: 1px solid rgba(255,255,255,0.09);
+  min-height: 86px;
 }
 
 html[data-theme="light"] .rpgCampaignArtifact{
-  background: rgba(255,255,255,0.9);
-  border-color: rgba(15,23,42,0.07);
+  background: rgba(255,255,255,0.86);
+  border-color: rgba(99,102,241,0.10);
 }
 
 .rpgCampaignArtifact.isRecovered{
-  background: rgba(18, 109, 65, 0.28);
-  border-color: rgba(107,226,139,0.28);
+  background: linear-gradient(180deg, rgba(18, 109, 65, 0.30), rgba(11, 94, 57, 0.22));
+  border-color: rgba(107,226,139,0.32);
 }
 
 html[data-theme="light"] .rpgCampaignArtifact.isRecovered{
-  background: rgba(240,253,244,0.98);
+  background: linear-gradient(180deg, rgba(236,253,245,0.98), rgba(240,253,244,0.96));
   border-color: rgba(34,197,94,0.18);
 }
 
 .rpgCampaignArtifactIcon{
-  width: 42px;
-  height: 42px;
-  border-radius: 999px;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
   display:grid;
   place-items:center;
   font-size: 1.15rem;
@@ -6998,21 +7491,45 @@ html[data-theme="light"] .rpgCampaignArtifact.isRecovered{
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
+html[data-theme="light"] .rpgCampaignArtifactIcon{
+  background: rgba(238,242,255,0.92);
+}
+
 .rpgCampaignArtifactMeta{
   display:grid;
-  gap: 2px;
+  gap: 3px;
+  min-width: 0;
+}
+
+.rpgCampaignArtifactArea{
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(191,219,254,0.78);
+  font-weight: 850;
+}
+
+html[data-theme="light"] .rpgCampaignArtifactArea{
+  color: rgba(67,56,202,0.64);
 }
 
 .rpgCampaignArtifactMeta strong{
   font-size: 0.95rem;
+  color: rgba(248,250,252,0.98);
 }
 
-.rpgCampaignArtifactMeta span{
+html[data-theme="light"] .rpgCampaignArtifactMeta strong{
+  color: #0f172a;
+}
+
+.rpgCampaignArtifactMeta span,
+.rpgCampaignArtifactStatus{
   font-size: 0.82rem;
-  color: rgba(226,232,240,0.76);
+  color: rgba(226,232,240,0.74);
 }
 
-html[data-theme="light"] .rpgCampaignArtifactMeta span{
+html[data-theme="light"] .rpgCampaignArtifactMeta span,
+html[data-theme="light"] .rpgCampaignArtifactStatus{
   color: rgba(51,65,85,0.72);
 }
 
@@ -7021,33 +7538,153 @@ html[data-theme="light"] .rpgCampaignArtifactMeta span{
   align-items:center;
   justify-content:space-between;
   gap: 12px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.09);
-  background: rgba(15,23,42,0.36);
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(2,6,23,0.44);
 }
 
 .rpgCampaignFinal.isUnlocked{
   border-color: rgba(125,211,252,0.28);
-  background: rgba(14,116,144,0.28);
+  background: rgba(8,145,178,0.24);
 }
 
 .rpgCampaignFinal.isComplete{
-  border-color: rgba(107,226,139,0.28);
-  background: rgba(21,128,61,0.28);
+  border-color: rgba(107,226,139,0.30);
+  background: rgba(21,128,61,0.24);
 }
 
 html[data-theme="light"] .rpgCampaignFinal{
-  background: rgba(255,255,255,0.9);
-  border-color: rgba(15,23,42,0.08);
+  background: rgba(245,247,255,0.95);
+  border-color: rgba(99,102,241,0.12);
+}
+
+html[data-theme="light"] .rpgCampaignFinal.isUnlocked{
+  background: rgba(236,254,255,0.98);
+  border-color: rgba(14,165,233,0.16);
+}
+
+html[data-theme="light"] .rpgCampaignFinal.isComplete{
+  background: rgba(240,253,244,0.98);
+  border-color: rgba(34,197,94,0.16);
+}
+
+.rpgCampaignFinalMeta{
+  display:grid;
+  gap: 3px;
 }
 
 .rpgCampaignFinalLabel{
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: rgba(148,163,184,0.9);
+  letter-spacing: 0.18em;
+  color: rgba(191,219,254,0.78);
   font-weight: 900;
+}
+
+html[data-theme="light"] .rpgCampaignFinalLabel{
+  color: rgba(67,56,202,0.66);
+}
+
+.rpgCampaignFinal strong{
+  color: rgba(248,250,252,0.98);
+}
+
+html[data-theme="light"] .rpgCampaignFinal strong{
+  color: #0f172a;
+}
+
+.rpgCampaignFinalIcon{
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display:grid;
+  place-items:center;
+  font-size: 1.1rem;
+  background: rgba(255,255,255,0.10);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+html[data-theme="light"] .rpgCampaignFinalIcon{
+  background: rgba(238,242,255,0.92);
+}
+
+@media (max-width: 720px){
+  .rpgCampaignCard{
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .rpgCampaignArtifacts::before{
+    display:none;
+  }
+
+  .rpgCampaignArtifact{
+    min-height: 78px;
+  }
+
+  .rpgCampaignMeterWrap{
+    justify-items:start;
+  }
+
+  .rpgOverworldHud{
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    gap: 8px;
+  }
+
+  .rpgOverworldHudBar{
+    grid-template-columns: 1fr;
+  }
+
+  .rpgOverworldHudSummary,
+  .rpgOverworldHudControls{
+    padding: 9px 10px;
+    border-radius: 15px;
+  }
+
+  .rpgOverworldHudControls{
+    justify-content:flex-start;
+  }
+
+  .rpgOverworldHudHelp{
+    display:none;
+  }
+
+  .rpgOverworldHudSummaryTop{
+    flex-wrap:wrap;
+  }
+
+  .rpgOverworldHudTitleRow--compact{
+    gap: 6px;
+  }
+
+  .rpgOverworldHudCount{
+    order: initial;
+  }
+
+  .rpgOverworldHudLegend{
+    display:flex;
+    flex-wrap:wrap;
+    gap: 10px;
+  }
+
+  .rpgCampaignCompactChip,
+  .rpgCampaignCompactGate{
+    width: auto;
+  }
+}
+
+@media (max-width: 980px){
+  .rpgOverworldHudBar{
+    grid-template-columns: 1fr;
+  }
+
+  .rpgOverworldHudControls{
+    justify-content:flex-start;
+  }
 }
 
 .rpgOverworldGuideBtn{

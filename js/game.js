@@ -149,38 +149,83 @@ if (root) {
     return [...BASE_OVERWORLD_BATTLE_IDS, FINAL_LOCATION_ID];
   }
 
-  function getCampaignTrackerHtml(progress = getCampaignProgress()) {
+  function getOverworldHudHtml(progress = getCampaignProgress()) {
+    const progressPct = Math.max(0, Math.min(100, Math.round((progress.recoveredCount / CAMPAIGN_DISTRICTS.length) * 100)));
+    const remaining = Math.max(0, CAMPAIGN_DISTRICTS.length - progress.recoveredCount);
+    const routeState = progress.campaignComplete
+      ? 'Campaign complete'
+      : (progress.finalUnlocked ? 'Palace open' : `${remaining} remaining`);
+
+    const compactDistrictLabel = (label) => {
+      switch (label) {
+        case 'Market Central': return 'Market';
+        case 'Fey Forest': return 'Forest';
+        default: return label;
+      }
+    };
+
     const chips = CAMPAIGN_DISTRICTS.map((d) => {
       const done = !!progress.clears[d.id];
+      const chipLabel = compactDistrictLabel(d.label);
+      const chipTitle = done
+        ? `${d.label} • ${d.artifactName} recovered`
+        : `${d.label} • ${d.artifactName} • Defeat ${d.bossName}`;
       return `
-        <div class="rpgCampaignArtifact${done ? ' isRecovered' : ''}">
-          <div class="rpgCampaignArtifactIcon" aria-hidden="true">${d.artifactIcon}</div>
-          <div class="rpgCampaignArtifactMeta">
-            <strong>${escapeHtml(d.artifactName)}</strong>
-            <span>${escapeHtml(d.label)} • ${done ? 'Recovered' : `Defeat ${d.bossName}`}</span>
-          </div>
+        <div class="rpgCampaignCompactChip${done ? ' isRecovered' : ''}" title="${escapeHtml(chipTitle)}" aria-label="${escapeHtml(chipTitle)}">
+          <span class="rpgCampaignCompactChipIcon" aria-hidden="true">${d.artifactIcon}</span>
+          <span class="rpgCampaignCompactChipText">
+            <strong>${escapeHtml(chipLabel)}</strong>
+            <span>${escapeHtml(d.artifactName)}</span>
+          </span>
         </div>
       `;
     }).join('');
 
     const finalText = progress.campaignComplete
-      ? 'Final Boss defeated'
-      : (progress.finalUnlocked ? 'Palace unlocked' : 'Collect all four artifacts');
+      ? 'Final boss defeated'
+      : (progress.finalUnlocked ? 'Palace unlocked' : '4 artifacts needed');
+    const finalIcon = progress.campaignComplete ? '✦' : (progress.finalUnlocked ? '🔓' : '🔒');
+    const helpText = progress.campaignComplete
+      ? 'The city is clear. Enter the Palace whenever you want.'
+      : (progress.finalUnlocked
+          ? 'All district artifacts reclaimed. The Palace marker is now live.'
+          : 'Tap a marker or walk the roads. Clear all four districts to open the Palace.');
 
     return `
-      <section class="rpgCampaignCard" aria-label="Campaign progress">
-        <div class="rpgCampaignHead">
-          <div>
-            <p class="rpgCampaignKicker">Campaign Goal</p>
-            <h3 class="rpgCampaignTitle">Defeat the district bosses and reclaim the four city artifacts</h3>
-            <p class="rpgCampaignBody">Each district boss guards one artifact. Recover the full set to unlock the Palace and finish the campaign.</p>
+      <section class="rpgOverworldHud" aria-label="Campaign progress and map controls">
+        <div class="rpgOverworldHudBar">
+          <div class="rpgOverworldHudSummary" title="${escapeHtml(helpText)}" aria-label="${escapeHtml(helpText)}">
+            <div class="rpgOverworldHudSummaryTop rpgOverworldHudSummaryTop--compact">
+              <div class="rpgOverworldHudTitleWrap rpgOverworldHudTitleWrap--compact">
+                <p class="rpgOverworldHudKicker">City Route</p>
+                <div class="rpgOverworldHudTitleRow rpgOverworldHudTitleRow--compact">
+                  <h3 class="rpgOverworldHudTitle">Artifacts</h3>
+                  <span class="rpgOverworldHudCount" aria-label="Artifacts recovered">${progress.recoveredCount}/${CAMPAIGN_DISTRICTS.length}</span>
+                  <span class="rpgOverworldHudState${progress.finalUnlocked ? ' isUnlocked' : ''}${progress.campaignComplete ? ' isComplete' : ''}">${escapeHtml(routeState)}</span>
+                </div>
+              </div>
+            </div>
+            <div class="rpgOverworldHudProgress" aria-hidden="true"><span style="width:${progressPct}%"></span></div>
           </div>
-          <div class="rpgCampaignMeter" aria-label="Artifacts recovered">${progress.recoveredCount} / ${CAMPAIGN_DISTRICTS.length}</div>
+          <div class="rpgOverworldHudControls">
+            <button type="button" class="btn ghost rpgOverworldGuideBtn" id="owGuideToggle" aria-pressed="true">Guide: On</button>
+            <button type="button" class="btn ghost rpgOverworldGuideBtn" id="owFogToggle" aria-pressed="true">Fog: On</button>
+            <div class="rpgOverworldZoomControls" aria-label="Map zoom controls">
+              <button type="button" class="btn ghost rpgOverworldZoomBtn" data-ow-zoom="out" aria-label="Zoom out">−</button>
+              <span class="rpgOverworldZoomLabel" data-ow-zoom-label>155%</span>
+              <button type="button" class="btn ghost rpgOverworldZoomBtn" data-ow-zoom="in" aria-label="Zoom in">+</button>
+            </div>
+          </div>
         </div>
-        <div class="rpgCampaignArtifacts">${chips}</div>
-        <div class="rpgCampaignFinal${progress.finalUnlocked ? ' isUnlocked' : ''}${progress.campaignComplete ? ' isComplete' : ''}">
-          <span class="rpgCampaignFinalLabel">Palace Gate</span>
-          <strong>${escapeHtml(finalText)}</strong>
+        <div class="rpgOverworldHudLegend">
+          ${chips}
+          <div class="rpgCampaignCompactGate${progress.finalUnlocked ? ' isUnlocked' : ''}${progress.campaignComplete ? ' isComplete' : ''}" title="${escapeHtml(`Palace Gate • ${finalText}`)}" aria-label="${escapeHtml(`Palace Gate • ${finalText}`)}">
+            <span class="rpgCampaignCompactChipIcon" aria-hidden="true">${finalIcon}</span>
+            <span class="rpgCampaignCompactChipText">
+              <strong>Palace</strong>
+              <span>${escapeHtml(finalText)}</span>
+            </span>
+          </div>
         </div>
       </section>
     `;
@@ -3406,20 +3451,8 @@ function renderLocationChoices() {
   }).join("");
 
   els.locationChoices.innerHTML = `
-    ${getCampaignTrackerHtml(campaign)}
-    <div class="rpgOverworldTopbar">
-      <div class="rpgOverworldHint">Explore with WASD / arrow keys, click to walk, or tap a marker. Defeat each district boss to recover its artifact. ${campaign.finalUnlocked ? "The Palace is now open." : "The Palace opens after all four artifacts are reclaimed."}</div>
-      <div class="rpgOverworldTopbarActions">
-        <button type="button" class="btn ghost rpgOverworldGuideBtn" id="owGuideToggle" aria-pressed="true">Movement guide: On</button>
-        <button type="button" class="btn ghost rpgOverworldGuideBtn" id="owFogToggle" aria-pressed="true">Fog of war: On</button>
-        <div class="rpgOverworldZoomControls" aria-label="Map zoom controls">
-        <button type="button" class="btn ghost rpgOverworldZoomBtn" data-ow-zoom="out" aria-label="Zoom out">−</button>
-        <span class="rpgOverworldZoomLabel" data-ow-zoom-label>155%</span>
-        <button type="button" class="btn ghost rpgOverworldZoomBtn" data-ow-zoom="in" aria-label="Zoom in">+</button>
-      </div>
-    </div>
-    </div>
     <div class="rpgOverworldMapFrame isGuideVisible" id="owFrame" aria-label="City map">
+      ${getOverworldHudHtml(campaign)}
       <div class="rpgOverworldWorld" id="owWorld">
         <img class="rpgOverworldMapImage" src="${mapUrl}" alt="City map" loading="eager" />
         <svg class="rpgOverworldRoadOverlay" id="owRoadOverlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${getOverworldRoadOverlaySvg()}</svg>
@@ -3650,7 +3683,7 @@ function renderLocationChoices() {
     const syncGuideUi = () => {
       frameEl.classList.toggle('isGuideVisible', !!OVERWORLD.showRoadOverlay);
       guideToggleBtn.setAttribute('aria-pressed', OVERWORLD.showRoadOverlay ? 'true' : 'false');
-      guideToggleBtn.textContent = `Movement guide: ${OVERWORLD.showRoadOverlay ? 'On' : 'Off'}`;
+      guideToggleBtn.textContent = `Guide: ${OVERWORLD.showRoadOverlay ? 'On' : 'Off'}`;
     };
     syncGuideUi();
     guideToggleBtn.addEventListener('click', () => {
@@ -3663,7 +3696,7 @@ function renderLocationChoices() {
   if (fogToggleBtn instanceof HTMLButtonElement) {
     const syncFogUi = () => {
       fogToggleBtn.setAttribute('aria-pressed', OVERWORLD.showFog ? 'true' : 'false');
-      fogToggleBtn.textContent = `Fog of war: ${OVERWORLD.showFog ? 'On' : 'Off'}`;
+      fogToggleBtn.textContent = `Fog: ${OVERWORLD.showFog ? 'On' : 'Off'}`;
       renderFogOverlay();
     };
     syncFogUi();
